@@ -24,7 +24,7 @@
     'version': '1.0',
     'author': "Alexandre Díaz (Aloxa Solucións S.L.) <alex@aloxa.eu>",
     'website': 'https://www.eiqui.com',
-    'category': 'hidden',
+    'category': 'API/JSON-RPC',
     'sequence': 100,
     'summary': "Store Keys for use in anymous json-rpc calls",
     'depends': [
@@ -42,6 +42,6 @@
     ],
     'installable': True,
     'auto_install': False,
-    'application': False,
+    'application': True,
     'license': 'AGPL-3',
 }
