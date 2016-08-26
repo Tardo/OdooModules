@@ -30,9 +30,10 @@ class ir_http(orm.AbstractModel):
     _inherit = 'ir.http'
 
     def _dispatch(self):
-        request.jsonrpckey = { 'user': None }
+        if hasattr(request, 'jsonrpckey'):
+            request.pop('jsonrpckey')
+            
         func = None
-        key = None
         try:
             func, arguments = self._find_handler()
             request.jsonrpckey_enabled = func.routing.get('jsonrpckey', False)
@@ -40,9 +41,10 @@ class ir_http(orm.AbstractModel):
             request.jsonrpckey_enabled = True
 
         if request.jsonrpckey_enabled:
+            key = None
             try:
                 if not func.routing['type'] == 'json':
-                    raise Exception('Invalid Key!')
+                    raise Exception("Can't use jsonrpc_keys in non json-rpc route")
             except Exception, e:
                 resp = super(ir_http, self)._handle_exception(e)
                 return resp
@@ -60,9 +62,10 @@ class ir_http(orm.AbstractModel):
         
             try:
                 key_obj = request.env['jsonrpc.keys'].sudo()
-                request.jsonrpckey['user'] = key_obj.check_key(key, request.httprequest.path)
-                if not request.jsonrpckey['user']:
+                user_id = key_obj.check_key(key, request.httprequest.path)
+                if not user_id:
                     raise Exception('Access Denied!')
+                setattr(request, 'jsonrpckey', { 'user': user_id })
             except Exception, e:
                 resp = super(ir_http, self)._handle_exception(e)
                 return resp

@@ -4,7 +4,7 @@
 JSON-RPC Keys
 =============
 
-Store Keys for use in anymous json-rpc calls. You can assign keys to users for know who is using it and for use with "sudo()".
+Store Keys for use in anonymous json-rpc calls. You can assign keys to users for know who is using it and for use with "sudo()".
 
 
 Parameters

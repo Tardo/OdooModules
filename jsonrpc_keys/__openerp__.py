@@ -21,12 +21,12 @@
 
 {
     'name': 'JSON-RPC User Key',
-    'version': '1.0',
+    'version': '1.1',
     'author': "Alexandre Díaz (Aloxa Solucións S.L.) <alex@aloxa.eu>",
     'website': 'https://www.eiqui.com',
     'category': 'API/JSON-RPC',
-    'sequence': 100,
-    'summary': "Store Keys for use in anymous json-rpc calls",
+    'summary': "Store Keys for use in anonymous json-rpc calls",
+    'description': "Store Keys for use in anonymous json-rpc calls. You can assign keys to users for know who is using it and for use with 'sudo()'",
     'depends': [
         'mail',
     ],
