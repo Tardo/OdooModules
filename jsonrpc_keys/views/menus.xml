@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+	<data>
+
+		<menuitem id="jsonrpc" name="JSON-RPC" parent="base.menu_administration" sequence="100"/>
+		<menuitem id="jsonrpc_keys" name="Keys" parent="jsonrpc" sequence="10"
+					action="jsonrpc_keys_action" />
+	      	      
+	</data>
+</openerp>

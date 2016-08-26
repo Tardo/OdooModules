@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+	<data>
+	
+		<record id="jsonrpc_keys_action" model="ir.actions.act_window">
+			<field name="name">JSON-RPC Keys</field>
+			<field name="res_model">jsonrpc.keys</field>		
+			<field name="view_mode">tree,form</field>		
+			<field name="view_type">form</field>
+			<field name="context">{}</field>						 
+		</record>
+
+	</data>
+</openerp>
