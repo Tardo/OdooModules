@@ -19,7 +19,13 @@
 	                    <group>
 				        	<field name="user_id" />
 				        	<field name="actived" />
-				        	<field name="urls" widget="text" />
+				        	<field name="json_rpc_routes_ids">
+				        		<tree create="true" editable="bottom/top">
+				        			<field name="url" />
+				        			<field name="uses" readonly="True"/>
+				        		</tree>
+				        	</field>
+				        	<field name="uses" />
 			        	</group>
 		        	</sheet>
 		        	<div class="oe_chatter">

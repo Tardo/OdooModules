@@ -21,7 +21,26 @@
 from openerp import models, fields, api, exceptions
 import os
 import binascii
+import logging
 
+_logger = logging.getLogger(__name__)
+
+class jsonrpc_routes(models.Model):
+    _name='jsonrpc.routes'
+    
+    @api.one
+    def increase_uses(self):
+        self.uses += 1
+    
+    @api.onchange('url')
+    @api.one
+    def _onchange_url(self):
+        _logger.info("TEEEST")
+        self.uses = 0
+    
+    url = fields.Char(string="URL", size=128, required=True)
+    uses = fields.Integer(string="Uses", default=0)
+    jsonrpc_keys_id = fields.Many2one('jsonrpc.keys', 'Key')
 
 class jsonrpc_keys(models.Model):
     _name='jsonrpc.keys'
@@ -37,22 +56,30 @@ class jsonrpc_keys(models.Model):
     def check_key(self, key, url):
         key_id = self.search([('key', '=', key), ('actived', '=', True)], limit=1)
         if not key_id:
-            return None
-        if key_id.urls and len(key_id.urls) > 0:
-            clean_url = url.split('?')[0]
-            urls = key_id.urls.split('\n')
-            if not clean_url in urls:
-                return None
-        return key_id.user_id
+            return (None, None)
+        if key_id.json_rpc_routes_ids and len(key_id.json_rpc_routes_ids) > 0:
+            clean_url = url.split('?')[0].lower()
+            for key_res in key_id.json_rpc_routes_ids:
+                if clean_url == key_res.url.lower():
+                    return (key_id, key_res)
+            return (None, None)
+        return (key_id, None)
     
     @api.one
     def generate_key(self):
         self.key = binascii.hexlify(os.urandom(32)).decode()
         return True
     
+    @api.one
+    def increase_uses(self):
+        self.uses += 1
+        return True
+    
     
     key = fields.Char(string='Key', size=128, required=True, unique=True, track_visibility='onchange')
     user_id = fields.Many2one('res.users', string='User', required=True, track_visibility='always')
     actived = fields.Boolean(string='Activated?', default=True, track_visibility='always')
-    urls = fields.Char(string='URLs Affected', track_visibility='onchange')
+    uses = fields.Integer(string="Uses", default=0)
+    json_rpc_routes_ids = fields.One2many('jsonrpc.routes', 'jsonrpc_keys_id', 
+                                            'Routes', track_visibility='onchange')
     

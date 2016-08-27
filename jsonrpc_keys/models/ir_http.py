@@ -23,6 +23,7 @@ import werkzeug
 import openerp
 from openerp.http import request
 from openerp.osv import orm
+from openerp.tools.translate import _
 
 _logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ class ir_http(orm.AbstractModel):
 
     def _dispatch(self):
         if hasattr(request, 'jsonrpckey'):
-            request.pop('jsonrpckey')
+            delattr(request, 'jsonrpckey')
             
         func = None
         try:
@@ -39,36 +40,39 @@ class ir_http(orm.AbstractModel):
             request.jsonrpckey_enabled = func.routing.get('jsonrpckey', False)
         except werkzeug.exceptions.NotFound:
             request.jsonrpckey_enabled = True
+            
+        key_id = None
+        key_res = None
 
         if request.jsonrpckey_enabled:
             key = None
+            if request.params.has_key('key'):
+                key = request.params['key']
+                request.params.pop('key')
+                
             try:
                 if not func.routing['type'] == 'json':
                     raise Exception("Can't use jsonrpc_keys in non json-rpc route")
-            except Exception, e:
-                resp = super(ir_http, self)._handle_exception(e)
-                return resp
-            
-            # Comprobar Key y obtener usuario
-            try:
-                key = request.params['key'] if request.params.has_key('key') else None
+                
                 if not key or len(key) == 0:
                     raise Exception('Invalid Key!')
-            except Exception, e:
-                resp = super(ir_http, self)._handle_exception(e)
-                return resp
-            
-            request.params.pop('key')
-        
-            try:
+                
                 key_obj = request.env['jsonrpc.keys'].sudo()
-                user_id = key_obj.check_key(key, request.httprequest.path)
-                if not user_id:
+                key_id, key_res = key_obj.check_key(key, request.httprequest.path)
+                if not key_id:
                     raise Exception('Access Denied!')
-                setattr(request, 'jsonrpckey', { 'user': user_id })
+                
+                setattr(request, 'jsonrpckey', { 'user': key_id.user_id })
             except Exception, e:
                 resp = super(ir_http, self)._handle_exception(e)
                 return resp
         
         resp = super(ir_http, self)._dispatch()
+        
+        if request.jsonrpckey_enabled and key_id:
+            if key_res:
+                key_res.increase_uses()
+            key_id.increase_uses()
+            key_id.sudo(user=key_id.user_id).message_post(body=_("%s used this key in '%s'") % 
+                                      (request.httprequest.remote_addr, request.httprequest.path))
         return resp

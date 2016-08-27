@@ -48,8 +48,9 @@
 {
 	"jsonrpc": "2.0",
 	"id": 1234,
+	"method": "call",
 	"params": {
-		"key":"8e5523cf96f0c2eb62942031fdbad2dcca9ca10ae74ff5cdbb4826faa47a436a",
+		"key":"e4e7e4927f5273ad840ab4668fadf9bed00fd822c3841181d8d46df0b1d4f7dc",
 		"num_tlf": "+34999999999"
 	}
 }
@@ -69,7 +70,23 @@
   					<li>The key isn't sent to the controller.</li>
   					<li>The controller only is called if the "check_key" procress finish normally (user identified).</li>
   					<li>Only can be used with JSON-RPC controllers... 'http' will cause an exception.</li>
+  					<li>Keys without routes are available on all json-rpc calls.</li>
   				</ul>
+  			</div>
+  		</div>
+  		
+   		<div class="row">
+  			<div class="col-md-9 mt32">
+    			<br/>
+      			<h2 class="text-muted">Issues</h2>
+      		</div>
+  			<div class="col-md-9 mb32">
+  				If you get:
+  				<pre>
+	raise osv.except_osv(_('Invalid Action!'), _("Unable to send email, please configure the sender's email address or alias."))
+except_orm: (u'Invalid Action!', u"Unable to send email, please configure the sender's email address or alias.")			
+  				</pre>
+  				Check that email of the 'partner' associated to the 'user' is not empty.
   			</div>
   		</div>
   		
@@ -78,7 +95,7 @@
     	<div class="row">
       		<div class="col-md-9 mb32">
        	 		<a target="_blank" href="http://www.eiqui.com">
-       	 			<img src="eiqui_logo.png" class="img-responsive" />
+       	 			<img src="eiqui_logo.png" class="img-responsive center-block" />
        	 		</a>
       		</div>
     	</div>    
