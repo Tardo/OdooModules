@@ -49,7 +49,7 @@ class jsonrpc_keys(models.Model):
         'key': {},
         'user_id': {},
         'actived': {},
-        'urls': {},
+        'json_rpc_routes_ids': {},
     }
     
     @api.v8
@@ -73,7 +73,6 @@ class jsonrpc_keys(models.Model):
     @api.one
     def increase_uses(self):
         self.uses += 1
-        return True
     
     
     key = fields.Char(string='Key', size=128, required=True, unique=True, track_visibility='onchange')
