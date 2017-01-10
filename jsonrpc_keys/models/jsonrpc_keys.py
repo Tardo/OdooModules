@@ -28,14 +28,13 @@ _logger = logging.getLogger(__name__)
 class jsonrpc_routes(models.Model):
     _name='jsonrpc.routes'
     
-    @api.one
+    @api.multi
     def increase_uses(self):
-        self.uses += 1
+        for record in self:
+            record.uses += 1
     
     @api.onchange('url')
-    @api.one
-    def _onchange_url(self):
-        _logger.info("TEEEST")
+    def onchange_url(self):
         self.uses = 0
     
     url = fields.Char(string="URL", size=128, required=True)
@@ -51,8 +50,7 @@ class jsonrpc_keys(models.Model):
         'actived': {},
         'json_rpc_routes_ids': {},
     }
-    
-    @api.v8
+
     def check_key(self, key, url):
         key_id = self.search([('key', '=', key), ('actived', '=', True)], limit=1)
         if not key_id:
@@ -65,19 +63,21 @@ class jsonrpc_keys(models.Model):
             return (None, None)
         return (key_id, None)
     
-    @api.one
+    @api.multi
     def generate_key(self):
-        self.key = binascii.hexlify(os.urandom(32)).decode()
-        return True
+        for record in self:
+            record.key = binascii.hexlify(os.urandom(32)).decode()
     
-    @api.one
+    @api.multi
     def increase_uses(self):
-        self.uses += 1
+        for record in self:
+            record.uses += 1
     
     
     key = fields.Char(string='Key', size=128, required=True, unique=True, track_visibility='onchange')
     user_id = fields.Many2one('res.users', string='User', required=True, track_visibility='always')
-    actived = fields.Boolean(string='Activated?', default=True, track_visibility='always')
+    actived = fields.Boolean(string='Activated', default=True, track_visibility='always')
+    reg_remote_addr_uses = fields.Boolean(string="Register Remote Address of Request", default=True, track_visibility='onchange')
     uses = fields.Integer(string="Uses", default=0)
     json_rpc_routes_ids = fields.One2many('jsonrpc.routes', 'jsonrpc_keys_id', 
                                             'Routes', track_visibility='onchange')

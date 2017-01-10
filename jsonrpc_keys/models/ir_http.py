@@ -35,16 +35,17 @@ class ir_http(orm.AbstractModel):
             delattr(request, 'jsonrpckey')
             
         func = None
+        jsonrpckey_enabled = False
         try:
             func, arguments = self._find_handler()
-            request.jsonrpckey_enabled = func.routing.get('jsonrpckey', False)
+            jsonrpckey_enabled = func.routing.get('jsonrpckey', False)
         except werkzeug.exceptions.NotFound:
-            request.jsonrpckey_enabled = False
+            jsonrpckey_enabled = False
             
         key_id = None
         key_res = None
 
-        if request.jsonrpckey_enabled and request.httprequest.method == 'POST':
+        if jsonrpckey_enabled and request.httprequest.method == 'POST':
             key = None
             if request.params.has_key('key'):
                 key = request.params['key']
@@ -52,15 +53,15 @@ class ir_http(orm.AbstractModel):
                 
             try:
                 if not func.routing['type'] == 'json':
-                    raise Exception("Can't use jsonrpc_keys in non json-rpc route")
+                    raise Exception(_("Can't use jsonrpc_keys in non json-rpc route"))
                 
                 if not key or len(key) == 0:
-                    raise Exception('Invalid Key!')
-                
-                key_obj = request.env['jsonrpc.keys'].sudo()
-                key_id, key_res = key_obj.check_key(key, request.httprequest.path)
+                    raise Exception(_('Invalid Key!'))
+
+                key_id, key_res = request.env['jsonrpc.keys'].sudo().check_key(key, 
+                                                                               request.httprequest.path)
                 if not key_id:
-                    raise Exception('Access Denied!')
+                    raise Exception(_('Access Denied!'))
                 
                 setattr(request, 'jsonrpckey', { 'user': key_id.user_id })
             except Exception, e:
@@ -69,10 +70,11 @@ class ir_http(orm.AbstractModel):
         
         resp = super(ir_http, self)._dispatch()
         
-        if request.jsonrpckey_enabled and key_id:
+        if jsonrpckey_enabled and key_id:
             if key_res:
                 key_res.increase_uses()
             key_id.increase_uses()
-            key_id.sudo(user=key_id.user_id).message_post(body=_("%s used this key in '%s'") % 
+            if key_id.reg_remote_addr_uses:
+                key_id.sudo(user=key_id.user_id).message_post(body=_("%s used this key in '%s'") % 
                                       (request.httprequest.remote_addr, request.httprequest.path))
         return resp

@@ -21,7 +21,7 @@
 
 {
     'name': 'JSON-RPC User Key',
-    'version': '2.0',
+    'version': '2.1',
     'author': "Alexandre Díaz (Aloxa Solucións S.L.) <alex@aloxa.eu>",
     'website': 'https://www.eiqui.com',
     'category': 'API/JSON-RPC',

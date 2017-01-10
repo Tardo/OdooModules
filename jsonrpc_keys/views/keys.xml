@@ -13,12 +13,17 @@
 	           		    <label for="key"/>
 	                    <div name="key_sect">
 	                        <field name="key" class="oe_inline" />
-	                        <button colspan="1" name="generate_key" string="Generate Key" type="object" icon="gtk-edit" class="oe_inline"/>
+	                        <button colspan="1" name="generate_key" string="Generate New Key" type="object" icon="gtk-edit" class="oe_inline"/>
 	                    </div>
 	                    
 	                    <group>
 				        	<field name="user_id" />
+				        </group>
+				        <group>
 				        	<field name="actived" />
+				        	<field name="reg_remote_addr_uses" />
+				        </group>
+				        <group>
 				        	<field name="json_rpc_routes_ids">
 				        		<tree create="true" editable="bottom/top">
 				        			<field name="url" />
