@@ -65,7 +65,7 @@ class ir_http(orm.AbstractModel):
                 
                 setattr(request, 'jsonrpckey', { 'user': key_id.user_id })
             except Exception, e:
-                resp = super(ir_http, self)._handle_exception(e)
+                resp = self._handle_exception(e)
                 return resp
         
         resp = super(ir_http, self)._dispatch()
