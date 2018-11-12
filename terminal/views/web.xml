@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+    Copyright 2018 Alexandre Díaz
+    License AGPL-3.0 or later (http://www.gnu.org/licenses/lgpl.html).
+-->
+
+<odoo>
+
+    <template id="webclient_bootstrap"
+              inherit_id="web.webclient_bootstrap"
+              name="Terminal - Web Client" >
+
+        <xpath expr="//div[hasclass('o_main_content')]" position="before">
+            <div class="o_terminal">
+                <textarea class="col-sm-12 col-lg-12" id="terminal_textarea" readonly="readonly"></textarea>
+                <input class="col-sm-11 col-lg-11" type="edit" id="terminal_input" />
+                <input class="col-sm-1 col-lg-1" type="button" id="terminal_button" value="Send" />
+            </div>
+        </xpath>
+
+    </template>
+
+</odoo>

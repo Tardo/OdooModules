@@ -1,0 +1,17 @@
+<template>
+
+<t t-name="document_ocr.ocr">
+    <div class="o_ocr">
+        <div class="ocr_webcam"></div>
+        <button class="ocr_screenshot_btn">Read!</button>
+    </div>
+</t>
+
+<t t-name="document_ocr.webcam">
+    <div class='o_ocr_webcam'>
+        <video id="video" autoplay="" width="300" height="250"></video>
+        <canvas id="canvas" width="300" height="250"></canvas>
+    </div>
+</t>
+
+</template>
