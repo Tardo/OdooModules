@@ -1,0 +1,31 @@
+.o_terminal {
+  width: 70%;
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, 0);
+  z-index: 10;
+  top: -100%;
+  box-shadow: 1px 1px 10px #cecece;
+
+  textarea {
+    height: 200px;
+    background-color: black;
+    color: lightgray;
+    border: 1px solid gray;
+    resize: none;
+    padding: 0;
+    overflow-y: scroll;
+    caret-color: white;
+  }
+
+  input {
+    border: 1px solid gray;
+    height: 25px;
+    &[type=edit] {
+      padding: 0;
+    }
+    &[type=button], &[type=button]:hover {
+      background-color: lightgray;
+    }
+  }
+}
