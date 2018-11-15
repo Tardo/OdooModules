@@ -17,10 +17,6 @@
     },
     'data': [
         'views/general.xml',
-        'views/web.xml',
-    ],
-    'qweb': [
-        'static/src/xml/*.xml',
     ],
     'test': [
     ],

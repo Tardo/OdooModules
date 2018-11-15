@@ -1,5 +1,15 @@
+@terminal_input_height: 25px;
+@terminal_screen_width: 70%;
+@terminal_screen_height: 200px;
+@terminal_screen_background_color: black;
+@terminal_screen_text_color: lightgray;
+
+.terminal_border {
+  border: 1px solid gray;
+}
+
 .o_terminal {
-  width: 70%;
+  width: @terminal_screen_width;
   position: absolute;
   left: 50%;
   transform: translate(-50%, 0);
@@ -7,25 +17,25 @@
   top: -100%;
   box-shadow: 1px 1px 10px #cecece;
 
-  textarea {
-    height: 200px;
-    background-color: black;
-    color: lightgray;
-    border: 1px solid gray;
+  div#terminal_screen {
+    height: @terminal_screen_height;
+    background-color: @terminal_screen_background_color;
+    color: @terminal_screen_text_color;
     resize: none;
     padding: 0;
     overflow-y: scroll;
     caret-color: white;
+    .terminal_border();
   }
 
   input {
-    border: 1px solid gray;
-    height: 25px;
-    &[type=edit] {
-      padding: 0;
-    }
+    height: @terminal_input_height;
     &[type=button], &[type=button]:hover {
       background-color: lightgray;
     }
+    &[type=edit] {
+      padding: 0;
+    }
+    .terminal_border();
   }
 }
