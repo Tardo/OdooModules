@@ -1,13 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
 
-    <!-- Backend stuff -->
+    <!-- Terminal HTML -->
+    <template id="terminal">
+        <div class="o_terminal">
+            <div class="col-sm-12 col-lg-12" id="terminal_screen" readonly="readonly"></div>
+            <input type="edit" class="col-sm-11 col-lg-11" id="terminal_input" />
+            <input class="col-sm-1 col-lg-1" type="button" id="terminal_button" value="Send" />
+        </div>
+    </template>
+
+    <!-- Put Terminal HTML -->
+    <template id="webclient_bootstrap" inherit_id="web.webclient_bootstrap">
+        <xpath expr="//div[hasclass('o_main_content')]" position="before">
+            <t t-call="terminal.terminal" />
+        </xpath>
+    </template>
+
+    <!-- Load Javascript Terminal -->
     <template id="assets_backend" inherit_id="web.assets_backend">
         <xpath expr="." position="inside">
             <link rel="stylesheet"
                   href="/terminal/static/src/less/terminal.less" />
             <script type="text/javascript"
                     src="/terminal/static/src/js/terminal.js"></script>
+            <script type="text/javascript"
+                    src="/terminal/static/src/js/terminal_basic_funcs.js"></script>
         </xpath>
     </template>
 

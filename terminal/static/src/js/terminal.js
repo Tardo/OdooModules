@@ -1,58 +1,79 @@
-odoo.define('terminal', function(require) {
+// Copyright 2018 Alexandre Díaz <dev@redneboa.es>
+// License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
+odoo.define('terminal.Terminal', function(require) {
   'use strict';
 
-  var rpc = require('web.rpc');
   var core = require('web.core');
   var Widget = require('web.Widget');
   var WebClient = require('web.WebClient');
 
-  var qweb = core.qweb;
-
   var Terminal = Widget.extend({
-    registeredCmds: {},
+    template: 'terminal.Terminal',
+    events: {
+      "keypress #terminal_input": "_onInputKeyPress",
+      "click #terminal_button": "_processInputCommand",
+    },
     _version: '0.1a',
 
-    init: function() {
+    _registeredCmds: {},
+    _inputHistory: [],
+    _searchCommandIter: 0,
+    _searchCommandQuery: '',
+    _searchHistoryIter: 0,
+
+    /* INITIALIZE */
+    init: function(parent) {
       this._super.apply(this, arguments);
 
-      this.$el = $('.o_terminal');
-      this.$input = $('#terminal_input');
-      this.$textarea = $('#terminal_textarea');
-      this.$button = $('#terminal_button');
-
-      this._registerCommand('help', this._printHelp);
-      this._registerCommand('clean', this.clean);
-      this._registerCommand('print', this._printMessage);
-      this._registerCommand('create', this._createModelRecord);
-      this._registerCommand('view', this._viewModelRecord);
-      this._registerCommand('search', this._searchModelRecord);
-      this._registerCommand('upgrade', this._upgradeModule);
-
-      this.clean();
-      this.addMessage(`Odoo Terminal v${this._version}`);
-      this.addMessage("Type 'help' to start.");
-      this.addMessage(' ');
-
-      this.$button.on('click', this._processInputCommand.bind(this));
-      this.$input.on('keydown', this._onInputKeyDown.bind(this));
-      core.bus.on('keydown', this, this._onKeyDown);
-      //core.bus.on('keyup', this, this.redirectKeyPresses);
-      //core.bus.on('keypress', this, this.redirectKeyPresses);
+      this.registerCommand('help', {
+        definition: 'Print this help or command detailed info',
+        function: this._printHelp,
+        detail: 'Show commands and a quick definition',
+        syntaxis: '[COMMAND]',
+      });
     },
 
-    addMessage: function(msg, enl) {
-      this.$textarea.val(`${this.$textarea.val()}${msg}${(enl||typeof enl === 'undefined'?'\n':'')}`);
-      this.$textarea[0].scrollTop = this.$textarea[0].scrollHeight;
+    start: function() {
+      this.$input = this.$el.find('#terminal_input');
+      this.$term = this.$el.find('#terminal_screen');
+      this.$button = this.$el.find('#terminal_button');
+
+      core.bus.on('keydown', this, this._onKeyDown);
+
+      this.clean();
+      this.print(_.template("Odoo Terminal v<%= ver %>")({ver:this._version}));
+      this.print("Type 'help' to start.");
+      this.print(' ');
+    },
+
+    /* PRINT */
+    print: function(msg, enl) {
+      this.$term.append(`<span>${msg}</span>${(enl||typeof enl === 'undefined'?'<br/>':'')}`);
+      this.$term[0].scrollTop = this.$term[0].scrollHeight;
+    },
+
+    eprint: function(msg, enl) {
+      this.$term.append('<span>');
+      this.$term.append(document.createTextNode(msg));
+      this.$term.append(`</span>${(enl||typeof enl === 'undefined'?'<br/>':'')}`);
+      this.$term[0].scrollTop = this.$term[0].scrollHeight;
+    },
+
+    /* BASIC FUNCTIONS */
+    clean: function() {
+      this.$term.html('');
     },
 
     cleanInput: function() {
       this.$input.val('');
     },
 
-    clean: function() {
-      this.$textarea.val('');
+    registerCommand: function(cmd, cmdDef) {
+      cmdDef.function = cmdDef.function.bind(this);
+      this._registeredCmds[cmd] = cmdDef;
     },
 
+    /* VISIBILIY */
     do_show: function() {
       this.$el.animate({
         top: '0',
@@ -74,130 +95,136 @@ odoo.define('terminal', function(require) {
       }
     },
 
-    _printHelp: function() {
-      this.addMessage("- Avaliable Commands:");
-      for (var cmd in this.registeredCmds) {
-        this.addMessage(`${cmd}, `, false);
+
+    /* PRIVATE METHODS*/
+    _doSearchCommand: function() {
+      var self = this;
+      var matchCmds = _.filter(_.keys(this._registeredCmds), function(item){
+          return item.indexOf(self._searchCommandQuery) === 0;
+      });
+
+      if (!matchCmds.length) {
+        this._searchCommandIter = 0;
+        return false;
       }
-      this.addMessage('');
+      else if (this._searchCommandIter >= matchCmds.length) {
+        this._searchCommandIter = matchCmds.length-1;
+      }
+      return matchCmds[this._searchCommandIter];
     },
 
-    _registerCommand: function(cmd, callback) {
-      this.registeredCmds[cmd] = callback.bind(this);
+    /* HELP COMMAND */
+    _printHelp: function(params) {
+      if (!params.length) {
+        for (var cmd in this._registeredCmds) {
+          var cmdDef = this._registeredCmds[cmd];
+          this._printHelpSimple(cmd, cmdDef);
+        }
+      } else {
+        var cmd = params[0];
+        if (this._registeredCmds.hasOwnProperty(cmd)) {
+          var cmdDef = this._registeredCmds[cmd];
+          this._printHelpDetailed(cmd, cmdDef);
+        } else {
+          this.print(_.template("<%= cmd %> command doesn't exists")({cmd:cmd}));
+        }
+      }
+
+      return $.when();
     },
 
+    _printHelpSimple: function(cmd, cmdDef) {
+      this.print(_.template("<%= cmd %> - <%= def %>")({cmd:cmd, def:cmdDef.definition}));
+    },
+
+    _printHelpDetailed: function(cmd, cmdDef) {
+      this.print(cmdDef.detail);
+      this.print(" ");
+      this.eprint(_.template("Syntaxis: <%= cmd %> <%= syntax %>")({cmd:cmd, syntax:cmdDef.syntaxis}));
+    },
+
+    /* HANDLE COMMANDS */
     _executeCommand: function(cmd) {
       var scmd = cmd.split(' ');
-      if (this.registeredCmds.hasOwnProperty(scmd[0])) {
-        return this.registeredCmds[scmd[0]](scmd.slice(1));
+      scmd = _.filter(scmd, function(item){ return item; });
+      var str_groups = [];
+      var c_group = [false, false];
+      for (var i in scmd) {
+        var startChar = scmd[i].charAt(0);
+        var endChar = scmd[i].charAt(scmd[i].length-1);
+        if (startChar === '"' || startChar === "'") {
+          c_group[0] = i;
+          scmd[i] = scmd[i].slice(1);
+        }
+        if (c_group[0] && (endChar === '"' || endChar === "'")) {
+          c_group[1] = i;
+          scmd[i] = scmd[i].slice(0, scmd[i].length-1);
+        }
+
+        if (c_group[0] !== false && c_group[1] !== false) {
+          str_groups.push(_.clone(c_group));
+          c_group = [false, false];
+        }
       }
 
-      this.addMessage(`[!] '${scmd[0]}' command not found`);
-      return $.Deferred();
-    },
+      for (var c_group of str_groups) {
+        scmd.splice(c_group[0], 0, scmd.splice(c_group[0], c_group[1]).join(' '));
+      }
 
-    _printMessage: function(params) {
-      var self = this;
-      return $.Deferred(function(defer) {
-        self.addMessage(eval(params.join(' ')));
-      }).promise();
-    },
+      if (this._registeredCmds.hasOwnProperty(scmd[0])) {
+        var cmdDef = this._registeredCmds[scmd[0]];
+        return cmdDef.function(scmd.slice(1));
+      }
 
-    _searchModelRecord: function(params) {
-      var model = params[0];
-      var fields = params[1]==='*'?false:params[1].split(',');
-      var domain = eval(params.slice(2).join(' '));
-      var self = this;
-      return rpc.query({
-        method: 'search_read',
-        domain: domain,
-        fields: fields,
-        model: model,
-      }).then(function(result){
-        for (var record of result)
-        {
-          self.addMessage(`${record.id}. `, false);
-          delete record['id'];
-          for (var field in record) {
-            self.addMessage(`${field}: ${record[field]}, `, false);
-          }
-          self.addMessage(' ');
-        }
-      });
-    },
-
-    _upgradeModule: function(params) {
-      var module = params[0];
-      var self = this;
-      return rpc.query({
-        method: 'search_read',
-        domain: [['name', '=', module]],
-        fields: ['name'],
-        model: 'ir.module.module',
-      }).then(function(result){
-        if (result.length) {
-          rpc.query({
-            method: 'button_immediate_upgrade',
-            model: 'ir.module.module',
-            args: [result[0].id],
-          }).then(function(){
-            self.addMessage(`'${module}' module successfully upgraded`);
-          }).fail(function(){
-            self.addMessage(`[!] Can't upgrade '${module}' module`);
-          });
-        } else {
-          self.addMessage(`[!] '${module}' module doesn't exists`);
-        }
-      });
-    },
-
-    _viewModelRecord: function(params) {
-      var model = params[0];
-      var self = this;
-      console.log(+params[1]);
-      return this.do_action({
-          type: 'ir.actions.act_window',
-          res_model: model,
-          res_id: (params.length < 2)?false:+params[1],
-          views: [[false, (params.length < 2)?'list':'form']],
-          target: 'new',
-      }).then(function(){
-        self.do_hide();
-      });
-    },
-
-    _createModelRecord: function(params) {
-      var model = params[0];
-      var self = this;
-      return this.do_action({
-          type: 'ir.actions.act_window',
-          res_model: model,
-          views: [[false, 'form']],
-          target: 'current',
-      }).then(function(){
-        self.do_hide();
-      });
+      this.eprint(_.template("[!] '<%= cmd %>' command not found")({cmd:scmd[0]}));
+      return $.when();
     },
 
     _processInputCommand: function() {
       var cmd = this.$input.val();
       if (cmd) {
         var self = this;
-        self.addMessage(cmd);
+        self.$input.append(_.template("<option><%= cmd %></option>")({cmd:cmd}));
+        self.eprint(_.template("> <%= cmd %>")({cmd:cmd}));
+        this._inputHistory.push(cmd);
         this._executeCommand(cmd).then(function(){
           self.cleanInput();
-        }).then(function(){
-          // TODO
         }).fail(function(){
-          self.addMessage(`[!] Error executing '${cmd}'`);
+          self.eprint(_.template("[!] Error executing '<%= cmd %>'")({cmd:cmd}));
         });
       }
       this.$input.focus();
     },
 
-    _onInputKeyDown: function(ev) {
+    /* HANDLE EVENTS */
+    _onInputKeyPress: function(ev) {
       if (ev.keyCode === 13) {
         this._processInputCommand();
+        this._searchHistoryIter = 0;
+      } else if (ev.keyCode === 38) {
+        this.$input.val(this._inputHistory[this._searchHistoryIter]);
+        if (this._searchHistoryIter < this._inputHistory.length-1) {
+          ++this._searchHistoryIter;
+        }
+      } else if (ev.keyCode === 40) {
+        if (this._searchHistoryIter > 0) {
+          --this._searchHistoryIter;
+          this.$input.val(this._inputHistory[this._searchHistoryIter]);
+        } else {
+          this.cleanInput();
+        }
+      }
+      if (ev.keyCode == 9) {
+        if (this.$input.val()) {
+          var found_cmd = this._doSearchCommand();
+          if (found_cmd) {
+            this.$input.val(found_cmd + ' ');
+          }
+        }
+        ev.preventDefault();
+      } else {
+        this._searchCommandIter = 0;
+        this._searchCommandQuery = this.$input.val();
       }
     },
     _onKeyDown: function(ev) {
@@ -207,11 +234,16 @@ odoo.define('terminal', function(require) {
     },
   });
 
+  /* Instantiate Terminal */
   WebClient.include({
-    start: function () {
-      this._super.apply(this, arguments);
-      new Terminal(this);
-    }
+    terminal: null,
+
+    show_application: function () {
+      this.terminal = new Terminal(this);
+      this.terminal.setElement(this.$el.parents().find('.o_terminal'));
+      this.terminal.start();
+      return this._super.apply(this, arguments);
+    },
   });
 
   return Terminal;
