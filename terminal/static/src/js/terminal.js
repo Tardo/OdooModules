@@ -6,14 +6,16 @@ odoo.define('terminal.Terminal', function(require) {
   var core = require('web.core');
   var Widget = require('web.Widget');
   var WebClient = require('web.WebClient');
+  var DebugManager = require('web.DebugManager');
 
   var Terminal = Widget.extend({
-    template: 'terminal.Terminal',
     events: {
       "keypress #terminal_input": "_onInputKeyPress",
       "click #terminal_button": "_processInputCommand",
+      "click #terminal_screen": "_preventLostInputFocus",
     },
-    _version: '0.1a',
+    VERSION: '0.1a',
+    INPUT_GROUP_DELIMETERS: ['"', "'"],
 
     _registeredCmds: {},
     _inputHistory: [],
@@ -30,6 +32,7 @@ odoo.define('terminal.Terminal', function(require) {
         function: this._printHelp,
         detail: 'Show commands and a quick definition',
         syntaxis: '[COMMAND]',
+        args: 's?',
       });
     },
 
@@ -38,10 +41,13 @@ odoo.define('terminal.Terminal', function(require) {
       this.$term = this.$el.find('#terminal_screen');
       this.$button = this.$el.find('#terminal_button');
 
-      core.bus.on('keydown', this, this._onKeyDown);
+      core.bus.on('keypress', this, this._onCoreKeyPress);
+      core.bus.on('click', this, this._onCoreClick);
 
       this.clean();
-      this.print(_.template("Odoo Terminal v<%= ver %>")({ver:this._version}));
+      this.cleanInput();
+
+      this.print(_.template("Odoo Terminal v<%= ver %>")({ver:this.VERSION}));
       this.print("Type 'help' to start.");
       this.print(' ');
     },
@@ -103,6 +109,7 @@ odoo.define('terminal.Terminal', function(require) {
           return item.indexOf(self._searchCommandQuery) === 0;
       });
 
+      ++this._searchCommandIter;
       if (!matchCmds.length) {
         this._searchCommandIter = 0;
         return false;
@@ -126,7 +133,7 @@ odoo.define('terminal.Terminal', function(require) {
           var cmdDef = this._registeredCmds[cmd];
           this._printHelpDetailed(cmd, cmdDef);
         } else {
-          this.print(_.template("<%= cmd %> command doesn't exists")({cmd:cmd}));
+          this.print(_.template("[!] '<%= cmd %>'' command doesn't exists")({cmd:cmd}));
         }
       }
 
@@ -144,36 +151,73 @@ odoo.define('terminal.Terminal', function(require) {
     },
 
     /* HANDLE COMMANDS */
-    _executeCommand: function(cmd) {
+    _sliceGroupInputParams: function(cmd) {
       var scmd = cmd.split(' ');
       scmd = _.filter(scmd, function(item){ return item; });
-      var str_groups = [];
-      var c_group = [false, false];
-      for (var i in scmd) {
-        var startChar = scmd[i].charAt(0);
-        var endChar = scmd[i].charAt(scmd[i].length-1);
-        if (startChar === '"' || startChar === "'") {
-          c_group[0] = i;
-          scmd[i] = scmd[i].slice(1);
-        }
-        if (c_group[0] && (endChar === '"' || endChar === "'")) {
-          c_group[1] = i;
-          scmd[i] = scmd[i].slice(0, scmd[i].length-1);
-        }
 
-        if (c_group[0] !== false && c_group[1] !== false) {
-          str_groups.push(_.clone(c_group));
-          c_group = [false, false];
+      var founded = false;
+      do {
+        founded = false;
+        var c_group = [false, false];
+        var mdeli = '';
+        for (var i in scmd) {
+          var startChar = scmd[i].charAt(0);
+          var endChar = scmd[i].charAt(scmd[i].length-1);
+          if (!c_group[0] && this.INPUT_GROUP_DELIMETERS.indexOf(startChar) != -1) {
+            c_group[0] = i;
+            mdeli = startChar;
+          }
+          if (c_group[0] && endChar === mdeli) {
+            c_group[1] = i;
+          }
+
+          if (c_group[0] !== false && c_group[1] !== false && c_group[0] !== c_group[1]) {
+            scmd[c_group[0]] = scmd[c_group[0]].slice(1);
+            scmd[c_group[1]] = scmd[c_group[1]].slice(0, scmd[c_group[1]].length-1);
+            scmd.splice(c_group[0], 0, scmd.splice(c_group[0], c_group[1]).join(' '));
+            founded = true;
+            break;
+          }
+        }
+      } while(founded);
+
+      return scmd;
+    },
+
+    _checkCommandParameters: function(cmdDef, params) {
+      var hasInvalidParams = false;
+      if (cmdDef.args.length) {
+        if (cmdDef.args.length === params.length ||
+            (cmdDef.args.charAt(cmdDef.args.length-1) === '?' &&
+              (cmdDef.args.length-2 === params.length || cmdDef.args.length-1 === params.length))) {
+          for (var i=0; i<params.length; ++i) {
+            var carg = cmdDef.args.charAt(i);
+            if ((carg === 'i' && params[i] != parseInt(params[i], 10)) ||
+                (carg === 's' && (params[i] == parseInt(params[i], 10) || !_.isString(params[i]))) ||
+                (carg !== 'i' && carg !== 's')) {
+              hasInvalidParams = true;
+              break;
+            }
+          }
+        } else {
+          hasInvalidParams = true;
         }
       }
 
-      for (var c_group of str_groups) {
-        scmd.splice(c_group[0], 0, scmd.splice(c_group[0], c_group[1]).join(' '));
-      }
+      return !hasInvalidParams;
+    },
 
+    _executeCommand: function(cmd) {
+      var scmd = this._sliceGroupInputParams(cmd);
       if (this._registeredCmds.hasOwnProperty(scmd[0])) {
         var cmdDef = this._registeredCmds[scmd[0]];
-        return cmdDef.function(scmd.slice(1));
+        var params = scmd.slice(1);
+        if (this._checkCommandParameters(cmdDef, params)) {
+          return cmdDef.function(params);
+        }
+
+        this.print("[!] Invalid command parameters!");
+        return $.when();
       }
 
       this.eprint(_.template("[!] '<%= cmd %>' command not found")({cmd:scmd[0]}));
@@ -197,24 +241,29 @@ odoo.define('terminal.Terminal', function(require) {
     },
 
     /* HANDLE EVENTS */
+    _preventLostInputFocus: function(ev) {
+      this.$input.focus();
+    },
+
     _onInputKeyPress: function(ev) {
-      if (ev.keyCode === 13) {
+      if (ev.keyCode === 13) { // Press Enter
         this._processInputCommand();
-        this._searchHistoryIter = 0;
-      } else if (ev.keyCode === 38) {
-        this.$input.val(this._inputHistory[this._searchHistoryIter]);
-        if (this._searchHistoryIter < this._inputHistory.length-1) {
-          ++this._searchHistoryIter;
-        }
-      } else if (ev.keyCode === 40) {
+        this._searchHistoryIter = this._inputHistory.length;
+      } else if (ev.keyCode === 38) { // Press Up
         if (this._searchHistoryIter > 0) {
           --this._searchHistoryIter;
           this.$input.val(this._inputHistory[this._searchHistoryIter]);
+        }
+      } else if (ev.keyCode === 40) { // Press Down
+        if (this._searchHistoryIter < this._inputHistory.length-1) {
+          ++this._searchHistoryIter;
+          this.$input.val(this._inputHistory[this._searchHistoryIter]);
         } else {
+          this._searchHistoryIter = this._inputHistory.length;
           this.cleanInput();
         }
       }
-      if (ev.keyCode == 9) {
+      if (ev.keyCode == 9) { // Press Tab
         if (this.$input.val()) {
           var found_cmd = this._doSearchCommand();
           if (found_cmd) {
@@ -227,8 +276,15 @@ odoo.define('terminal.Terminal', function(require) {
         this._searchCommandQuery = this.$input.val();
       }
     },
-    _onKeyDown: function(ev) {
-      if (ev.altKey && ev.keyCode === 113) {
+
+    _onCoreClick: function(ev) {
+      // Auto-Hide
+      if (!this.$el[0].contains(ev.target)) {
+        this.do_hide();
+      }
+    },
+    _onCoreKeyPress: function(ev) {
+      if (ev.keyCode === 112) { // Press F1
         this.do_toggle();
       }
     },
@@ -240,11 +296,23 @@ odoo.define('terminal.Terminal', function(require) {
 
     show_application: function () {
       this.terminal = new Terminal(this);
-      this.terminal.setElement(this.$el.parents().find('.o_terminal'));
+      this.terminal.setElement(this.$el.parents().find('#terminal'));
       this.terminal.start();
+      core.bus.on('toggle_terminal', this, (function() {
+        this.terminal.do_toggle();
+      }).bind(this));
+
       return this._super.apply(this, arguments);
     },
   });
+
+  /* Debug Menu Entry Action */
+  DebugManager.include({
+    toggle_terminal: function(ev) {
+      // HOT-FIX: Prevent hide terminal dispatched by an "outside click event"
+      _.defer(function(){ core.bus.trigger_up('toggle_terminal'); });
+    },
+  })
 
   return Terminal;
 });

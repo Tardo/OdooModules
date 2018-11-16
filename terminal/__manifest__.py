@@ -18,6 +18,9 @@
     'data': [
         'views/general.xml',
     ],
+    'qweb': [
+        'static/src/xml/*.xml',
+    ],
     'test': [
     ],
 

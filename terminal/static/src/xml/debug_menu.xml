@@ -1,0 +1,10 @@
+<template>
+
+<t t-extend="WebClient.DebugManager.Global">
+    <t t-jquery="li > a[data-action='leave_debug_mode']" t-operation="after">
+        <li class="divider"/>
+        <li><a href="#" data-action="toggle_terminal">Toggle Terminal <span style="font-size:x-small; float:right;"><i>F1</i></span></a></li>
+    </t>
+</t>
+
+</template>

@@ -3,7 +3,7 @@
 
     <!-- Terminal HTML -->
     <template id="terminal">
-        <div class="o_terminal">
+        <div id="terminal" class="o_terminal">
             <div class="col-sm-12 col-lg-12" id="terminal_screen" readonly="readonly"></div>
             <input type="edit" class="col-sm-11 col-lg-11" id="terminal_input" />
             <input class="col-sm-1 col-lg-1" type="button" id="terminal_button" value="Send" />
