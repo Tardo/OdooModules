@@ -3,12 +3,12 @@
 
 {
     'name': 'Terminal',
-    'version': '11.0.1.0',
+    'version': '11.0.0.3',
     'author': "Alexandre Díaz <dev@redneboa.es>",
     'website': '',
-    'category': 'terminal',
+    'category': 'Extra Tools/Terminal',
     'summary': "Terminal",
-    'description': "Terminal",
+    'description': "A Console for run commands",
     'depends': [
         'web',
     ],
