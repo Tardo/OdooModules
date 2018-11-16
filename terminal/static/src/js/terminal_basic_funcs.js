@@ -8,12 +8,16 @@ odoo.define('terminal.BasicFunctions', function(require) {
   var Terminal = require('terminal.Terminal');
 
   Terminal.include({
+    events: _.extend({}, Terminal.prototype.events, {
+        "click .o_terminal_view": "_onClickTerminalView",
+    }),
+
     init: function() {
       this._super.apply(this, arguments);
 
-      this.registerCommand('clean', {
+      this.registerCommand('clear', {
         definition: 'Clean terminal',
-        function: this._clean,
+        function: this._clear,
         detail: '',
         syntaxis: '',
         args: '',
@@ -21,63 +25,84 @@ odoo.define('terminal.BasicFunctions', function(require) {
       this.registerCommand('print', {
         definition: 'Print a message',
         function: this._printEval,
-        detail: 'Evail parameters and print the result',
+        detail: 'Eval parameters and print the result.',
         syntaxis: '<MSG>',
         args: '',
       });
       this.registerCommand('create', {
         definition: 'Create new record',
         function: this._createModelRecord,
-        detail: 'Open new model record in form view or directly',
-        syntaxis: '<MODEL NAME> [VALUES]',
+        detail: 'Open new model record in form view or directly.',
+        syntaxis: '<MODEL NAME> "[VALUES]"',
         args: 'ss?',
       });
       this.registerCommand('unlink', {
         definition: 'Unlink record',
         function: this._unlinkModelRecord,
-        detail: 'Delete a record',
+        detail: 'Delete a record.',
         syntaxis: '<MODEL NAME> <RECORD ID>',
         args: 'si',
       });
       this.registerCommand('write', {
         definition: 'Update record values',
         function: this._writeModelRecord,
-        detail: 'Update record values',
-        syntaxis: '<MODEL NAME> <RECORD ID> <NEW VALUES>',
+        detail: 'Update record values.',
+        syntaxis: '<MODEL NAME> <RECORD ID> "<NEW VALUES>"',
         args: 'sis',
       });
       this.registerCommand('view', {
         definition: 'View model record/s',
         function: this._viewModelRecord,
-        detail: 'Open model record in form view or record in list view',
+        detail: 'Open model record in form view or records in list view.',
         syntaxis: '<MODEL NAME> [RECORD ID]',
         args: 'si?',
       });
       this.registerCommand('search', {
         definition: 'Search model record/s',
         function: this._searchModelRecord,
-        detail: 'Launch orm search query<br/>Fields are separated by commas.',
-        syntaxis: '<MODEL NAME> <FIELDS> [DOMAIN]',
+        detail: 'Launch orm search query.<br/>Fields are separated by commas.',
+        syntaxis: '<MODEL NAME> <FIELDS> "[DOMAIN]"',
+        args: 'sss?',
+      });
+      this.registerCommand('call', {
+        definition: 'Call model method',
+        function: this._callModelMethod,
+        detail: 'Call model method.',
+        syntaxis: '<MODEL> <METHOD> "[ARGS]"',
         args: 'sss?',
       });
       this.registerCommand('upgrade', {
         definition: 'Upgrade a module',
         function: this._upgradeModule,
-        detail: 'Launch upgrade module process',
+        detail: 'Launch upgrade module process.',
+        syntaxis: '<MODULE NAME>',
+        args: 's',
+      });
+      this.registerCommand('install', {
+        definition: 'Install a module',
+        function: this._installModule,
+        detail: 'Launch module installation process.',
+        syntaxis: '<MODULE NAME>',
+        args: 's',
+      });
+      this.registerCommand('uninstall', {
+        definition: 'Uninstall a module',
+        function: this._uninstallModule,
+        detail: 'Launch module deletion process.',
         syntaxis: '<MODULE NAME>',
         args: 's',
       });
       this.registerCommand('settings', {
         definition: 'Open settings page',
         function: this._openSettings,
-        detail: 'Open settings page',
+        detail: 'Open settings page.',
         syntaxis: '',
         args: '',
       });
       this.registerCommand('reload', {
         definition: 'Reload current page',
         function: this._reloadPage,
-        detail: 'Reload current page',
+        detail: 'Reload current page.',
         syntaxis: '',
         args: '',
       });
@@ -88,11 +113,22 @@ odoo.define('terminal.BasicFunctions', function(require) {
         syntaxis: '<MODE>',
         args: 'i',
       });
+      this.registerCommand('action', {
+        definition: 'Call action',
+        function: this._callAction,
+        detail: 'Call action.<br/>&lt;ACTION&gt; Can be an string or object.',
+        syntaxis: '"<ACTION>"',
+        args: 's',
+      });
     },
 
-    _clean: function(params) {
-      this.clean();
-      return $.when();
+    _clear: function(params) {
+      var self = this;
+      var defer_clean = $.Deferred(function(d){
+        self.clean();
+        d.resolve();
+      });
+      return $.when(defer_clean);
     },
 
     _setDebugMode: function(params) {
@@ -124,7 +160,7 @@ odoo.define('terminal.BasicFunctions', function(require) {
           self.print(eval(params.join(' ')));
           d.resolve();
         } catch (err) {
-          d.reject();
+          d.reject(err.message);
         }
       }));
     },
@@ -136,9 +172,94 @@ odoo.define('terminal.BasicFunctions', function(require) {
           location.reload();
           d.resolve();
         } catch (err) {
-          d.reject();
+          d.reject(err.message);
         }
       }));
+    },
+
+    _searchModule: function(module) {
+      return rpc.query({
+        method: 'search_read',
+        domain: [['name', '=', module]],
+        fields: ['name'],
+        model: 'ir.module.module',
+        kwargs: {context: session.user_context},
+      });
+    },
+
+    _upgradeModule: function(params) {
+      var module = params[0];
+      var self = this;
+      return this._searchModule(module).then(function(result){
+        if (result.length) {
+          rpc.query({
+            method: 'button_immediate_upgrade',
+            model: 'ir.module.module',
+            args: [result[0].id],
+          }).then(function(){
+            self.print(_.template("'<%= module %>' module successfully upgraded")({module:module}));
+          }).fail(function(){
+            self.print(_.template("[!] Can't upgrade '<%= module %>' module")({module:module}));
+          });
+        } else {
+          self.print(_.template("[!] '<%= module %>' module doesn't exists")({module:module}));
+        }
+      });
+    },
+
+    _installModule: function(params) {
+      var module = params[0];
+      var self = this;
+      return this._searchModule(module).then(function(result){
+        if (result.length) {
+          rpc.query({
+            method: 'button_immediate_install',
+            model: 'ir.module.module',
+            args: [result[0].id],
+          }).then(function(){
+            self.print(_.template("'<%= module %>' module successfully installed")({module:module}));
+          }).fail(function(){
+            self.print(_.template("[!] Can't install '<%= module %>' module")({module:module}));
+          });
+        } else {
+          self.print(_.template("[!] '<%= module %>' module doesn't exists")({module:module}));
+        }
+      });
+    },
+
+    _uninstallModule: function(params) {
+      var module = params[0];
+      var self = this;
+      return this._searchModule(module).then(function(result){
+        if (result.length) {
+          rpc.query({
+            method: 'button_immediate_uninstall',
+            model: 'ir.module.module',
+            args: [result[0].id],
+          }).then(function(){
+            self.print(_.template("'<%= module %>' module successfully uninstalled")({module:module}));
+          }).fail(function(){
+            self.print(_.template("[!] Can't uninstall '<%= module %>' module")({module:module}));
+          });
+        } else {
+          self.print(_.template("[!] '<%= module %>' module doesn't exists")({module:module}));
+        }
+      });
+    },
+
+    _callModelMethod: function(params) {
+      var model = params[0];
+      var method = params[1];
+      var args = params[2] || "[]";
+      var self = this;
+      return rpc.query({
+        method: method,
+        model: model,
+        args: eval(args),
+        kwargs: {context: session.user_context},
+      }).then(function(result){
+        self.print(result);
+      });
     },
 
     _searchModelRecord: function(params) {
@@ -153,40 +274,13 @@ odoo.define('terminal.BasicFunctions', function(require) {
         model: model,
         kwargs: {context: session.user_context},
       }).then(function(result){
-        for (var record of result)
-        {
-          self.print(`${record.id}. `, false);
+        for (var record of result) {
+          self.print(_.template("<span class='o_terminal_click o_terminal_view' data-resid='<%= id %>' data-model='<%= model %>'><%= id %></span>. ")({id:record.id, model:model}), false);
           delete record['id'];
           for (var field in record) {
             self.print(_.template("<%= field %>: <%= value %>, ")({field:field, value:record[field]}), false);
           }
           self.print('');
-        }
-      });
-    },
-
-    _upgradeModule: function(params) {
-      var module = params[0];
-      var self = this;
-      return rpc.query({
-        method: 'search_read',
-        domain: [['name', '=', module]],
-        fields: ['name'],
-        model: 'ir.module.module',
-        kwargs: {context: session.user_context},
-      }).then(function(result){
-        if (result.length) {
-          rpc.query({
-            method: 'button_immediate_upgrade',
-            model: 'ir.module.module',
-            args: [result[0].id],
-          }).then(function(){
-            self.print(_.template("'<%= module %>' module successfully upgraded")({module:module}));
-          }).fail(function(){
-            self.print(_.template("[!] Can't upgrade '<%= module %>' module")({module:module}));
-          });
-        } else {
-          self.print(_.template("[!] '<%= module %>' module doesn't exists")({module:module}));
         }
       });
     },
@@ -250,11 +344,17 @@ odoo.define('terminal.BasicFunctions', function(require) {
       var record_id = parseInt(params[1], 10);
       var values = params[2];
       values = values.replace(new RegExp("'", 'g'), '"');
+      try {
+        values = JSON.parse(values);
+      } catch (err) {
+        var defer = $.Deferred(function(d){ d.reject(err.message); });
+        return $.when(defer);
+      }
       var self = this;
       return rpc.query({
         method: 'write',
         model: model,
-        args: [record_id, JSON.parse(values)],
+        args: [record_id, values],
         kwargs: {context: session.user_context},
       }).then(function(result){
         self.print(_.template("<%= model %> record updated successfully")({model:model}));
@@ -271,6 +371,25 @@ odoo.define('terminal.BasicFunctions', function(require) {
       }).then(function(){
         self.do_hide();
       });
+    },
+
+    _callAction: function(params) {
+      var self = this;
+      var action = params[0];
+      try {
+        action = JSON.parse(action);
+      } catch (err) {
+        var defer = $.Deferred(function(d){ d.reject(err.message); });
+        return $.when(defer);
+      }
+      return this.do_action(action);
+    },
+
+
+    _onClickTerminalView: function(ev) {
+      if (ev.target.dataset.hasOwnProperty('resid') && ev.target.dataset.hasOwnProperty('model')) {
+        this._viewModelRecord([ev.target.dataset.model, ev.target.dataset.resid]);
+      }
     },
   });
 

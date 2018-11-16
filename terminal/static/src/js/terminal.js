@@ -4,6 +4,8 @@ odoo.define('terminal.Terminal', function(require) {
   'use strict';
 
   var core = require('web.core');
+  var rpc = require('web.rpc');
+  var session = require('web.session');
   var Widget = require('web.Widget');
   var WebClient = require('web.WebClient');
   var DebugManager = require('web.DebugManager');
@@ -13,8 +15,9 @@ odoo.define('terminal.Terminal', function(require) {
       "keypress #terminal_input": "_onInputKeyPress",
       "click #terminal_button": "_processInputCommand",
       "click #terminal_screen": "_preventLostInputFocus",
+      "click .o_terminal_cmd": "_onClickTerminalCommand",
     },
-    VERSION: '0.1a',
+    VERSION: '0.3',
     INPUT_GROUP_DELIMETERS: ['"', "'"],
 
     _registeredCmds: {},
@@ -30,9 +33,16 @@ odoo.define('terminal.Terminal', function(require) {
       this.registerCommand('help', {
         definition: 'Print this help or command detailed info',
         function: this._printHelp,
-        detail: 'Show commands and a quick definition',
+        detail: 'Show commands and a quick definition.',
         syntaxis: '[COMMAND]',
         args: 's?',
+      });
+      this.registerCommand('alias', {
+        definition: 'Create alias',
+        function: this._createAlias,
+        detail: 'Create new alias.<br/>Can use "$1, $2, $n..." for input parameters.',
+        syntaxis: '<NAME> <COMMAND>',
+        args: 'ss',
       });
     },
 
@@ -47,8 +57,8 @@ odoo.define('terminal.Terminal', function(require) {
       this.clean();
       this.cleanInput();
 
-      this.print(_.template("Odoo Terminal v<%= ver %>")({ver:this.VERSION}));
-      this.print("Type 'help' to start.");
+      this.print(_.template("<strong style='color:rgb(124, 123, 173);'>Odoo Terminal v<%= ver %></strong>")({ver:this.VERSION}));
+      this.print("Type '<i class='o_terminal_click o_terminal_cmd' data-cmd='help'>help</i>' or '<i class='o_terminal_click o_terminal_cmd' data-cmd='help help'>help &lt;command&gt;</i>' to start.");
       this.print(' ');
     },
 
@@ -79,6 +89,25 @@ odoo.define('terminal.Terminal', function(require) {
       this._registeredCmds[cmd] = cmdDef;
     },
 
+    executeCommand: function(cmd) {
+      var self = this;
+      var scmd = this._sliceGroupInputParams(cmd);
+      if (this._registeredCmds.hasOwnProperty(scmd[0])) {
+        var cmdDef = this._registeredCmds[scmd[0]];
+        var params = scmd.slice(1);
+        if (this._checkCommandParameters(cmdDef, params)) {
+          cmdDef.function(params).fail(function(emsg){
+            emsg = emsg || "undefined error";
+            self.eprint(_.template("[!] Error executing '<%= cmd %>': <%= error %>")({cmd:cmd, error:emsg}));
+          });
+        } else {
+          this.print(_.template("<span class='o_terminal_click o_terminal_cmd' data-cmd='help <%= cmd %>'>[!] Invalid command parameters!</span>")({cmd:scmd[0]}));
+        }
+      } else {
+        this._callAlias(scmd[0], scmd.slice(1));
+      }
+    },
+
     /* VISIBILIY */
     do_show: function() {
       this.$el.animate({
@@ -106,18 +135,92 @@ odoo.define('terminal.Terminal', function(require) {
     _doSearchCommand: function() {
       var self = this;
       var matchCmds = _.filter(_.keys(this._registeredCmds), function(item){
-          return item.indexOf(self._searchCommandQuery) === 0;
+        console.log(self._searchCommandQuery + " --- " + item);
+        console.log(item.indexOf(self._searchCommandQuery));
+        return item.indexOf(self._searchCommandQuery) === 0;
       });
 
-      ++this._searchCommandIter;
+      console.log(matchCmds);
+
       if (!matchCmds.length) {
         this._searchCommandIter = 0;
         return false;
       }
       else if (this._searchCommandIter >= matchCmds.length) {
-        this._searchCommandIter = matchCmds.length-1;
+        this._searchCommandIter = 0;
       }
-      return matchCmds[this._searchCommandIter];
+      return matchCmds[this._searchCommandIter++];
+    },
+
+    /* ALIAS COMMAND */
+    _createAlias: function(params) {
+      var name = params[0];
+      var code = params[1];
+      var self = this;
+
+      return rpc.query({
+        method: 'search_read',
+        domain: [['name', '=', name]],
+        model: 'terminal.alias',
+        fields: ['id'],
+        kwargs: {context: session.user_context},
+      }).then(function(results){
+        if (code === '-d') {
+          if (results.length) {
+            return rpc.query({
+              method: 'unlink',
+              model: 'terminal.alias',
+              args: [results[0].id],
+              kwargs: {context: session.user_context},
+            }).then(function(result){
+              self.print(_.template("'<%= alias %>' alias deleted successfully")({alias:name}));
+            });
+          } else {
+            self.print(_.template("[!] '<%= alias %>' alias doesn't exists!")({alias:name}));
+          }
+        } else if (results.length) {
+          return rpc.query({
+            method: 'write',
+            model: 'terminal.alias',
+            args: [results[0].id, {command:code}],
+            kwargs: {context: session.user_context},
+          }).then(function(result){
+            self.print(_.template("'<%= alias %>' alias updated successfully")({alias:name}));
+          });
+        } else {
+          return rpc.query({
+            method: 'create',
+            model: 'terminal.alias',
+            args: [{name:name, command:code}],
+            kwargs: {context: session.user_context},
+          }).then(function(result){
+            self.print(_.template("'<%= alias %>' alias created successfully")({alias:name}));
+          });
+        }
+      });
+    },
+
+    _callAlias: function(alias, params) {
+      var self = this;
+      return rpc.query({
+        method: 'search_read',
+        domain: [['name', '=', alias]],
+        model: 'terminal.alias',
+        fields: ['command'],
+        kwargs: {context: session.user_context},
+      }).then(function(results){
+        if (results.length) {
+          var cmd = results[0].command;
+          for (var i in params) {
+            console.log('$'+(+i+1));
+            cmd = cmd.replace('$'+(+i+1), params[i]);
+          }
+          console.log(cmd);
+          self._executeCommand(cmd);
+        } else {
+          self.print(_.template("[!] '<%= cmd %>' command not found")({cmd:alias}));
+        }
+      });
     },
 
     /* HELP COMMAND */
@@ -141,7 +244,7 @@ odoo.define('terminal.Terminal', function(require) {
     },
 
     _printHelpSimple: function(cmd, cmdDef) {
-      this.print(_.template("<%= cmd %> - <%= def %>")({cmd:cmd, def:cmdDef.definition}));
+      this.print(_.template("<strong class='o_terminal_click o_terminal_cmd' data-cmd='help <%= cmd %>'><%= cmd %></strong> - <i><%= def %></i>")({cmd:cmd, def:cmdDef.definition}));
     },
 
     _printHelpDetailed: function(cmd, cmdDef) {
@@ -207,23 +310,6 @@ odoo.define('terminal.Terminal', function(require) {
       return !hasInvalidParams;
     },
 
-    _executeCommand: function(cmd) {
-      var scmd = this._sliceGroupInputParams(cmd);
-      if (this._registeredCmds.hasOwnProperty(scmd[0])) {
-        var cmdDef = this._registeredCmds[scmd[0]];
-        var params = scmd.slice(1);
-        if (this._checkCommandParameters(cmdDef, params)) {
-          return cmdDef.function(params);
-        }
-
-        this.print("[!] Invalid command parameters!");
-        return $.when();
-      }
-
-      this.eprint(_.template("[!] '<%= cmd %>' command not found")({cmd:scmd[0]}));
-      return $.when();
-    },
-
     _processInputCommand: function() {
       var cmd = this.$input.val();
       if (cmd) {
@@ -231,11 +317,9 @@ odoo.define('terminal.Terminal', function(require) {
         self.$input.append(_.template("<option><%= cmd %></option>")({cmd:cmd}));
         self.eprint(_.template("> <%= cmd %>")({cmd:cmd}));
         this._inputHistory.push(cmd);
-        this._executeCommand(cmd).then(function(){
-          self.cleanInput();
-        }).fail(function(){
-          self.eprint(_.template("[!] Error executing '<%= cmd %>'")({cmd:cmd}));
-        });
+        this._input
+        this.cleanInput();
+        this._executeCommand(cmd);
       }
       this.$input.focus();
     },
@@ -243,6 +327,14 @@ odoo.define('terminal.Terminal', function(require) {
     /* HANDLE EVENTS */
     _preventLostInputFocus: function(ev) {
       this.$input.focus();
+    },
+
+    _onClickTerminalCommand: function(ev) {
+      if (ev.target.dataset.hasOwnProperty('cmd')) {
+        var cmd = ev.target.dataset.cmd;
+        this.eprint(_.template("> <%= cmd %>")({cmd:cmd}));
+        this._executeCommand(cmd);
+      }
     },
 
     _onInputKeyPress: function(ev) {
@@ -265,6 +357,9 @@ odoo.define('terminal.Terminal', function(require) {
       }
       if (ev.keyCode == 9) { // Press Tab
         if (this.$input.val()) {
+          if (!this._searchCommandQuery) {
+            this._searchCommandQuery = this.$input.val();
+          }
           var found_cmd = this._doSearchCommand();
           if (found_cmd) {
             this.$input.val(found_cmd + ' ');
@@ -273,7 +368,7 @@ odoo.define('terminal.Terminal', function(require) {
         ev.preventDefault();
       } else {
         this._searchCommandIter = 0;
-        this._searchCommandQuery = this.$input.val();
+        this._searchCommandQuery = false;
       }
     },
 
