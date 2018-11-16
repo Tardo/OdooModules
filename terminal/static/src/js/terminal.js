@@ -135,12 +135,8 @@ odoo.define('terminal.Terminal', function(require) {
     _doSearchCommand: function() {
       var self = this;
       var matchCmds = _.filter(_.keys(this._registeredCmds), function(item){
-        console.log(self._searchCommandQuery + " --- " + item);
-        console.log(item.indexOf(self._searchCommandQuery));
         return item.indexOf(self._searchCommandQuery) === 0;
       });
-
-      console.log(matchCmds);
 
       if (!matchCmds.length) {
         this._searchCommandIter = 0;
@@ -212,10 +208,8 @@ odoo.define('terminal.Terminal', function(require) {
         if (results.length) {
           var cmd = results[0].command;
           for (var i in params) {
-            console.log('$'+(+i+1));
             cmd = cmd.replace('$'+(+i+1), params[i]);
           }
-          console.log(cmd);
           self.executeCommand(cmd);
         } else {
           self.print(_.template("[!] '<%= cmd %>' command not found")({cmd:alias}));
@@ -317,7 +311,6 @@ odoo.define('terminal.Terminal', function(require) {
         self.$input.append(_.template("<option><%= cmd %></option>")({cmd:cmd}));
         self.eprint(_.template("> <%= cmd %>")({cmd:cmd}));
         this._inputHistory.push(cmd);
-        this._input
         this.cleanInput();
         this.executeCommand(cmd);
       }
