@@ -40,7 +40,7 @@ odoo.define('terminal.Terminal', function(require) {
       this.registerCommand('alias', {
         definition: 'Create alias',
         function: this._createAlias,
-        detail: 'Create new alias.<br/>Can use "$1, $2, $n..." for input parameters.',
+        detail: 'Create new alias.<br/>Can use "$1, $2, $n..." for input parameters.<br/>Use "-q" in &lt;COMMAND&gt; to delete alias.',
         syntaxis: '<NAME> <COMMAND>',
         args: 'ss',
       });
