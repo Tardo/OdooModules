@@ -216,7 +216,7 @@ odoo.define('terminal.Terminal', function(require) {
             cmd = cmd.replace('$'+(+i+1), params[i]);
           }
           console.log(cmd);
-          self._executeCommand(cmd);
+          self.executeCommand(cmd);
         } else {
           self.print(_.template("[!] '<%= cmd %>' command not found")({cmd:alias}));
         }
@@ -319,7 +319,7 @@ odoo.define('terminal.Terminal', function(require) {
         this._inputHistory.push(cmd);
         this._input
         this.cleanInput();
-        this._executeCommand(cmd);
+        this.executeCommand(cmd);
       }
       this.$input.focus();
     },
@@ -333,7 +333,7 @@ odoo.define('terminal.Terminal', function(require) {
       if (ev.target.dataset.hasOwnProperty('cmd')) {
         var cmd = ev.target.dataset.cmd;
         this.eprint(_.template("> <%= cmd %>")({cmd:cmd}));
-        this._executeCommand(cmd);
+        this.executeCommand(cmd);
       }
     },
 
