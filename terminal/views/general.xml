@@ -25,6 +25,8 @@
             <script type="text/javascript"
                     src="/terminal/static/src/js/terminal.js"></script>
             <script type="text/javascript"
+                    src="/terminal/static/src/js/terminal_core_funcs.js"></script>
+            <script type="text/javascript"
                     src="/terminal/static/src/js/terminal_basic_funcs.js"></script>
         </xpath>
     </template>

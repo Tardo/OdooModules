@@ -9,6 +9,85 @@ odoo.define('terminal.Terminal', function(require) {
   var Widget = require('web.Widget');
   var WebClient = require('web.WebClient');
   var DebugManager = require('web.DebugManager');
+  var Class = require('web.Class');
+
+
+  var ParameterReader = Class.extend({
+    INPUT_GROUP_DELIMETERS: ['"', "'"],
+
+    parse: function(strParams) {
+      var scmd = strParams.split(' ');
+      scmd = _.filter(scmd, function(item){ return item; });
+
+      var c_group = [false, false];
+      var mdeli = '';
+      var params = [];
+      for (var i in scmd) {
+        var startChar = scmd[i].charAt(0);
+        var endChar = scmd[i].charAt(scmd[i].length-1);
+        if (c_group[0] === false && this.INPUT_GROUP_DELIMETERS.indexOf(startChar) !== -1) {
+          c_group[0] = i;
+          mdeli = startChar;
+        }
+        if (c_group[0] !== false && endChar === mdeli) {
+          c_group[1] = i;
+        }
+
+        if (c_group[0] !== false && c_group[1] !== false) {
+          scmd[c_group[0]] = scmd[c_group[0]].slice(1);
+          scmd[c_group[1]] = scmd[c_group[1]].slice(0, scmd[c_group[1]].length-1);
+          params.push(this._sanitizeString(_.clone(scmd).splice(c_group[0], (c_group[1]-c_group[0])+1).join(' ')));
+          c_group[0] = false;
+          c_group[1] = false;
+        } else if (c_group[0] === false && c_group[1] === false) {
+          params.push(this._sanitizeString(scmd[i]));
+        }
+      }
+
+      return params;
+    },
+
+    _sanitizeString: function(str) {
+      return str.replace(new RegExp("['\"]", 'g'), '\"');
+    },
+  });
+
+  var ParameterChecker = Class.extend({
+    _validators: {},
+
+    init: function() {
+      this._validators['s'] = this._validateString;
+      this._validators['i'] = this._validateInt;
+    },
+
+    validate: function(args, params) {
+      var curParamIndex = 0;
+      for (var i=0; i < args.length; ++i) {
+        var carg = args[i];
+        var optional = false;
+        if (carg === '?') {
+          optional = true;
+          carg = args[++i];
+        }
+
+        if ((!optional && curParamIndex >= params.length) ||
+            (curParamIndex < params.length && !this._validators[carg](params[curParamIndex]))) {
+          return false;
+        }
+
+        ++curParamIndex;
+      }
+
+      return (!curParamIndex || params.length <= curParamIndex);
+    },
+
+    _validateString: function(param) {
+      return (+param !== parseInt(param, 10));
+    },
+    _validateInt: function(param) {
+      return (+param === parseInt(param, 10));
+    },
+  });
 
   var Terminal = Widget.extend({
     events: {
@@ -17,8 +96,7 @@ odoo.define('terminal.Terminal', function(require) {
       "click #terminal_screen": "_preventLostInputFocus",
       "click .o_terminal_cmd": "_onClickTerminalCommand",
     },
-    VERSION: '0.3',
-    INPUT_GROUP_DELIMETERS: ['"', "'"],
+    VERSION: '0.1.0',
 
     _registeredCmds: {},
     _inputHistory: [],
@@ -26,27 +104,20 @@ odoo.define('terminal.Terminal', function(require) {
     _searchCommandQuery: '',
     _searchHistoryIter: 0,
 
+    _parameterChecker: null,
+    _parameterReader: null,
+
     /* INITIALIZE */
     init: function(parent) {
       this._super.apply(this, arguments);
 
-      this.registerCommand('help', {
-        definition: 'Print this help or command detailed info',
-        function: this._printHelp,
-        detail: 'Show commands and a quick definition.',
-        syntaxis: '[COMMAND]',
-        args: 's?',
-      });
-      this.registerCommand('alias', {
-        definition: 'Create alias',
-        function: this._createAlias,
-        detail: 'Create new alias.<br/>Can use "$1, $2, $n..." for input parameters.<br/>Use "-q" in &lt;COMMAND&gt; to delete alias.',
-        syntaxis: '<NAME> <COMMAND>',
-        args: 'ss',
-      });
+      this._parameterChecker = new ParameterChecker();
+      this._parameterReader = new ParameterReader();
     },
 
     start: function() {
+      this._super.apply(this, arguments);
+
       this.$input = this.$el.find('#terminal_input');
       this.$term = this.$el.find('#terminal_screen');
       this.$button = this.$el.find('#terminal_button');
@@ -91,11 +162,11 @@ odoo.define('terminal.Terminal', function(require) {
 
     executeCommand: function(cmd) {
       var self = this;
-      var scmd = this._sliceGroupInputParams(cmd);
+      var scmd = this._parameterReader.parse(cmd);
       if (this._registeredCmds.hasOwnProperty(scmd[0])) {
         var cmdDef = this._registeredCmds[scmd[0]];
         var params = scmd.slice(1);
-        if (this._checkCommandParameters(cmdDef, params)) {
+        if (this._parameterChecker.validate(cmdDef.args, params)) {
           cmdDef.function(params).fail(function(emsg){
             emsg = emsg || "undefined error";
             self.eprint(_.template("[!] Error executing '<%= cmd %>': <%= error %>")({cmd:cmd, error:emsg}));
@@ -148,162 +219,6 @@ odoo.define('terminal.Terminal', function(require) {
       return matchCmds[this._searchCommandIter++];
     },
 
-    /* ALIAS COMMAND */
-    _createAlias: function(params) {
-      var name = params[0];
-      var code = params[1];
-      var self = this;
-
-      return rpc.query({
-        method: 'search_read',
-        domain: [['name', '=', name]],
-        model: 'terminal.alias',
-        fields: ['id'],
-        kwargs: {context: session.user_context},
-      }).then(function(results){
-        if (code === '-d') {
-          if (results.length) {
-            return rpc.query({
-              method: 'unlink',
-              model: 'terminal.alias',
-              args: [results[0].id],
-              kwargs: {context: session.user_context},
-            }).then(function(result){
-              self.print(_.template("'<%= alias %>' alias deleted successfully")({alias:name}));
-            });
-          } else {
-            self.print(_.template("[!] '<%= alias %>' alias doesn't exists!")({alias:name}));
-          }
-        } else if (results.length) {
-          return rpc.query({
-            method: 'write',
-            model: 'terminal.alias',
-            args: [results[0].id, {command:code}],
-            kwargs: {context: session.user_context},
-          }).then(function(result){
-            self.print(_.template("'<%= alias %>' alias updated successfully")({alias:name}));
-          });
-        } else {
-          return rpc.query({
-            method: 'create',
-            model: 'terminal.alias',
-            args: [{name:name, command:code}],
-            kwargs: {context: session.user_context},
-          }).then(function(result){
-            self.print(_.template("'<%= alias %>' alias created successfully")({alias:name}));
-          });
-        }
-      });
-    },
-
-    _callAlias: function(alias, params) {
-      var self = this;
-      return rpc.query({
-        method: 'search_read',
-        domain: [['name', '=', alias]],
-        model: 'terminal.alias',
-        fields: ['command'],
-        kwargs: {context: session.user_context},
-      }).then(function(results){
-        if (results.length) {
-          var cmd = results[0].command;
-          for (var i in params) {
-            cmd = cmd.replace('$'+(+i+1), params[i]);
-          }
-          self.executeCommand(cmd);
-        } else {
-          self.print(_.template("[!] '<%= cmd %>' command not found")({cmd:alias}));
-        }
-      });
-    },
-
-    /* HELP COMMAND */
-    _printHelp: function(params) {
-      if (!params.length) {
-        for (var cmd in this._registeredCmds) {
-          var cmdDef = this._registeredCmds[cmd];
-          this._printHelpSimple(cmd, cmdDef);
-        }
-      } else {
-        var cmd = params[0];
-        if (this._registeredCmds.hasOwnProperty(cmd)) {
-          var cmdDef = this._registeredCmds[cmd];
-          this._printHelpDetailed(cmd, cmdDef);
-        } else {
-          this.print(_.template("[!] '<%= cmd %>'' command doesn't exists")({cmd:cmd}));
-        }
-      }
-
-      return $.when();
-    },
-
-    _printHelpSimple: function(cmd, cmdDef) {
-      this.print(_.template("<strong class='o_terminal_click o_terminal_cmd' data-cmd='help <%= cmd %>'><%= cmd %></strong> - <i><%= def %></i>")({cmd:cmd, def:cmdDef.definition}));
-    },
-
-    _printHelpDetailed: function(cmd, cmdDef) {
-      this.print(cmdDef.detail);
-      this.print(" ");
-      this.eprint(_.template("Syntaxis: <%= cmd %> <%= syntax %>")({cmd:cmd, syntax:cmdDef.syntaxis}));
-    },
-
-    /* HANDLE COMMANDS */
-    _sliceGroupInputParams: function(cmd) {
-      var scmd = cmd.split(' ');
-      scmd = _.filter(scmd, function(item){ return item; });
-
-      var founded = false;
-      do {
-        founded = false;
-        var c_group = [false, false];
-        var mdeli = '';
-        for (var i in scmd) {
-          var startChar = scmd[i].charAt(0);
-          var endChar = scmd[i].charAt(scmd[i].length-1);
-          if (!c_group[0] && this.INPUT_GROUP_DELIMETERS.indexOf(startChar) != -1) {
-            c_group[0] = i;
-            mdeli = startChar;
-          }
-          if (c_group[0] && endChar === mdeli) {
-            c_group[1] = i;
-          }
-
-          if (c_group[0] !== false && c_group[1] !== false && c_group[0] !== c_group[1]) {
-            scmd[c_group[0]] = scmd[c_group[0]].slice(1);
-            scmd[c_group[1]] = scmd[c_group[1]].slice(0, scmd[c_group[1]].length-1);
-            scmd.splice(c_group[0], 0, scmd.splice(c_group[0], c_group[1]).join(' '));
-            founded = true;
-            break;
-          }
-        }
-      } while(founded);
-
-      return scmd;
-    },
-
-    _checkCommandParameters: function(cmdDef, params) {
-      var hasInvalidParams = false;
-      if (cmdDef.args.length) {
-        if (cmdDef.args.length === params.length ||
-            (cmdDef.args.charAt(cmdDef.args.length-1) === '?' &&
-              (cmdDef.args.length-2 === params.length || cmdDef.args.length-1 === params.length))) {
-          for (var i=0; i<params.length; ++i) {
-            var carg = cmdDef.args.charAt(i);
-            if ((carg === 'i' && params[i] != parseInt(params[i], 10)) ||
-                (carg === 's' && (params[i] == parseInt(params[i], 10) || !_.isString(params[i]))) ||
-                (carg !== 'i' && carg !== 's')) {
-              hasInvalidParams = true;
-              break;
-            }
-          }
-        } else {
-          hasInvalidParams = true;
-        }
-      }
-
-      return !hasInvalidParams;
-    },
-
     _processInputCommand: function() {
       var cmd = this.$input.val();
       if (cmd) {
@@ -314,7 +229,7 @@ odoo.define('terminal.Terminal', function(require) {
         this.cleanInput();
         this.executeCommand(cmd);
       }
-      this.$input.focus();
+      this._preventLostInputFocus();
     },
 
     /* HANDLE EVENTS */
@@ -386,9 +301,9 @@ odoo.define('terminal.Terminal', function(require) {
       this.terminal = new Terminal(this);
       this.terminal.setElement(this.$el.parents().find('#terminal'));
       this.terminal.start();
-      core.bus.on('toggle_terminal', this, (function() {
+      core.bus.on('toggle_terminal', this, function() {
         this.terminal.do_toggle();
-      }).bind(this));
+      });
 
       return this._super.apply(this, arguments);
     },
