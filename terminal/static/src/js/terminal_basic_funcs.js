@@ -34,7 +34,7 @@ odoo.define('terminal.BasicFunctions', function(require) {
         function: this._createModelRecord,
         detail: 'Open new model record in form view or directly.',
         syntaxis: '<MODEL NAME> "[VALUES]"',
-        args: 'ss?',
+        args: 's?s',
       });
       this.registerCommand('unlink', {
         definition: 'Unlink record',
@@ -55,21 +55,21 @@ odoo.define('terminal.BasicFunctions', function(require) {
         function: this._viewModelRecord,
         detail: 'Open model record in form view or records in list view.',
         syntaxis: '<MODEL NAME> [RECORD ID]',
-        args: 'si?',
+        args: 's?i',
       });
       this.registerCommand('search', {
         definition: 'Search model record/s',
         function: this._searchModelRecord,
         detail: 'Launch orm search query.<br/>Fields are separated by commas.',
         syntaxis: '<MODEL NAME> <FIELDS> "[DOMAIN]"',
-        args: 'sss?',
+        args: 'ss?s',
       });
       this.registerCommand('call', {
         definition: 'Call model method',
         function: this._callModelMethod,
         detail: 'Call model method.',
         syntaxis: '<MODEL> <METHOD> "[ARGS]"',
-        args: 'sss?',
+        args: 'ss?s',
       });
       this.registerCommand('upgrade', {
         definition: 'Upgrade a module',
@@ -156,11 +156,14 @@ odoo.define('terminal.BasicFunctions', function(require) {
     _printEval: function(params) {
       var self = this;
       return $.when($.Deferred(function(d){
+        var msg = params.join(' ');
         try {
-          self.print(eval(params.join(' ')));
-          d.resolve();
+          msg = eval(msg);
         } catch (err) {
-          d.reject(err.message);
+          // Do Nothing
+        } finally {
+          self.print(msg);
+          d.resolve();
         }
       }));
     },
@@ -255,7 +258,7 @@ odoo.define('terminal.BasicFunctions', function(require) {
       return rpc.query({
         method: method,
         model: model,
-        args: eval(args),
+        args: JSON.parse(args),
         kwargs: {context: session.user_context},
       }).then(function(result){
         self.print(result);
@@ -269,7 +272,7 @@ odoo.define('terminal.BasicFunctions', function(require) {
       var self = this;
       return rpc.query({
         method: 'search_read',
-        domain: eval(domain),
+        domain: JSON.parse(domain),
         fields: fields,
         model: model,
         kwargs: {context: session.user_context},
@@ -313,7 +316,6 @@ odoo.define('terminal.BasicFunctions', function(require) {
         });
       } else {
         var values = params[1];
-        values = values.replace(new RegExp("'", 'g'), '"');
         return rpc.query({
           method: 'create',
           model: model,
@@ -343,7 +345,6 @@ odoo.define('terminal.BasicFunctions', function(require) {
       var model = params[0];
       var record_id = parseInt(params[1], 10);
       var values = params[2];
-      values = values.replace(new RegExp("'", 'g'), '"');
       try {
         values = JSON.parse(values);
       } catch (err) {
@@ -379,12 +380,10 @@ odoo.define('terminal.BasicFunctions', function(require) {
       try {
         action = JSON.parse(action);
       } catch (err) {
-        var defer = $.Deferred(function(d){ d.reject(err.message); });
-        return $.when(defer);
+        // Do Nothing
       }
       return this.do_action(action);
     },
-
 
     _onClickTerminalView: function(ev) {
       if (ev.target.dataset.hasOwnProperty('resid') && ev.target.dataset.hasOwnProperty('model')) {

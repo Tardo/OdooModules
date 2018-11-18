@@ -18,7 +18,7 @@ Manage Odoo with commands.
 
 ### EXAMPLE COMMANDS
 - Create Record: ```create res.partner "{'name': 'The One'}"```
-- Create Alias: ```alias myalias "print "'Hello, World!'""```
+- Create Alias: ```alias myalias "print Hello, World!"```
 - Install Module: ```install mymodule```
 
 
@@ -50,7 +50,7 @@ Commands works with promises
 - function: Function Pointer.
 - detail: String.
 - syntaxis: String. <> Required | [] Optional
-- args: String. 's' String | 'i' Integer | '?' Last parameter optional
+- args: String. 's' String | 'i' Integer | '?' Optional Parameter
 
 ##### Basic Example
 ```javascript
@@ -68,7 +68,7 @@ odoo.define('terminal.MyFuncs', function(require) {
         function: this._myFunc,
         detail: 'My command explained...',
         syntaxis: '<STRING> <INT> [STRING]',
-        args: 'sis?',
+        args: 'si?s',
       });
     },
 
@@ -80,7 +80,7 @@ odoo.define('terminal.MyFuncs', function(require) {
 
       console.log("1º Param (String): " + pA);
       console.log("2º Param (Int): " + pB);
-      console.log("3º Param (String): " + pC);
+      console.log("3º Param (Optional String): " + pC);
 
       var defer = $.Deferred(function(d){
         self.print("Hello, World!");
