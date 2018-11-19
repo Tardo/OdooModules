@@ -5,7 +5,7 @@ odoo.define('terminal.CoreFunctions', function(require) {
 
   var rpc = require('web.rpc');
   var session = require('web.session');
-  var Terminal = require('terminal.Terminal');
+  var Terminal = require('terminal.Terminal').terminal;
 
   Terminal.include({
     init: function() {
@@ -74,27 +74,6 @@ odoo.define('terminal.CoreFunctions', function(require) {
       });
     },
 
-    _callAlias: function(alias, params) {
-      var self = this;
-      return rpc.query({
-        method: 'search_read',
-        domain: [['name', '=', alias]],
-        model: 'terminal.alias',
-        fields: ['command'],
-        kwargs: {context: session.user_context},
-      }).then(function(results){
-        if (results.length) {
-          var cmd = results[0].command;
-          for (var i in params) {
-            cmd = cmd.replace('$'+(+i+1), params[i]);
-          }
-          self.executeCommand(cmd);
-        } else {
-          self.print(_.template("[!] '<%= cmd %>' command not found")({cmd:alias}));
-        }
-      });
-    },
-
     _printHelp: function(params) {
       if (!params.length) {
         for (var cmd in this._registeredCmds) {
@@ -124,6 +103,11 @@ odoo.define('terminal.CoreFunctions', function(require) {
       this.eprint(_.template("Syntaxis: <%= cmd %> <%= syntax %>")({cmd:cmd, syntax:cmdDef.syntaxis}));
     },
 
+
+    _printWelcomeMessage: function() {
+      this._super.apply(this, arguments);
+      this.print("Type '<i class='o_terminal_click o_terminal_cmd' data-cmd='help'>help</i>' or '<i class='o_terminal_click o_terminal_cmd' data-cmd='help help'>help &lt;command&gt;</i>' to start.");
+    },
   });
 
 });
