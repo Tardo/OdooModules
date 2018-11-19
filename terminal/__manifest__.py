@@ -17,6 +17,8 @@
     },
     'data': [
         'views/general.xml',
+        'security/ir_rule.xml',
+        'security/ir.model.access.csv',
     ],
     'qweb': [
         'static/src/xml/*.xml',
