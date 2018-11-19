@@ -142,7 +142,7 @@ odoo.define('terminal.Terminal', function(require) {
     print: function(msg, enl) {
       this.$term.append("<span>");
       this.$term.append(msg);
-      this.$term.append("</span>" + (enl && '' || '<br/>'));
+      this.$term.append("</span>" + (enl && ' ' || '<br/>'));
       this.$term[0].scrollTop = this.$term[0].scrollHeight;
     },
 
