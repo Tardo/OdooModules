@@ -5,7 +5,7 @@ odoo.define('terminal.BasicFunctions', function(require) {
 
   var rpc = require('web.rpc');
   var session = require('web.session');
-  var Terminal = require('terminal.Terminal');
+  var Terminal = require('terminal.Terminal').terminal;
 
   Terminal.include({
     events: _.extend({}, Terminal.prototype.events, {
@@ -322,7 +322,7 @@ odoo.define('terminal.BasicFunctions', function(require) {
           args: [JSON.parse(values)],
           kwargs: {context: session.user_context},
         }).then(function(result){
-          self.print(_.template("<%= model %> record create successfully: <%= new_id %>")({model:model, new_id:result}));
+          self.print(_.template("<%= model %> record created successfully: <span class='o_terminal_click o_terminal_view' data-resid='<%= new_id %>' data-model='<%= model %>'><%= new_id %></span>")({model:model, new_id:result}));
         });
       }
     },

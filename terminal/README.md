@@ -57,7 +57,7 @@ Commands works with promises
 odoo.define('terminal.MyFuncs', function(require) {
   'use strict';
 
-  var Terminal = require('terminal.Terminal');
+  var Terminal = require('terminal.Terminal').terminal;
 
   Terminal.include({
     init: function() {

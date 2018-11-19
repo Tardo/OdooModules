@@ -3,7 +3,7 @@
 
 {
     'name': 'Terminal',
-    'version': '11.0.0.3',
+    'version': '11.0.0.1.1',
     'author': "Alexandre Díaz <dev@redneboa.es>",
     'website': '',
     'category': 'Extra Tools/Terminal',
