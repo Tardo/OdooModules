@@ -278,10 +278,10 @@ odoo.define('terminal.BasicFunctions', function(require) {
         kwargs: {context: session.user_context},
       }).then(function(result){
         for (var record of result) {
-          self.print(_.template("<span class='o_terminal_click o_terminal_view' data-resid='<%= id %>' data-model='<%= model %>'><%= id %></span>. ")({id:record.id, model:model}), false);
+          self.print(_.template("<span class='o_terminal_click o_terminal_view' data-resid='<%= id %>' data-model='<%= model %>'><%= id %></span>. ")({id:record.id, model:model}), true);
           delete record['id'];
           for (var field in record) {
-            self.print(_.template("<%= field %>: <%= value %>, ")({field:field, value:record[field]}), false);
+            self.print(_.template("<%= field %>: <%= value %>, ")({field:field, value:record[field]}), true);
           }
           self.print('');
         }
