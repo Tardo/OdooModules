@@ -21,7 +21,7 @@ odoo.define('terminal.CoreFunctions', function(require) {
       this.registerCommand('alias', {
         definition: 'Create alias',
         function: this._createAlias,
-        detail: 'Create new alias.<br/>Can use "$1, $2, $n..." for input parameters.<br/>Use "-q" in &lt;COMMAND&gt; to delete alias.',
+        detail: 'Create new alias.<br/>Can use "$1, $2, $n..." for input parameters.<br/>Use "-d" in &lt;COMMAND&gt; to delete alias.',
         syntaxis: '<NAME> <COMMAND>',
         args: 'ss',
       });
@@ -31,6 +31,12 @@ odoo.define('terminal.CoreFunctions', function(require) {
       var name = params[0];
       var code = params[1];
       var self = this;
+
+      var existsCmd = _.some(_.keys(this._registeredCmds), function(item){ return item.toLowerCase() === name.toLowerCase(); });
+      if (existsCmd) {
+        var defer_error = $.Deferred(function(d){ d.reject("Invalid alias name"); });
+        return $.when(defer_error);
+      }
 
       return rpc.query({
         method: 'search_read',
