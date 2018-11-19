@@ -18,7 +18,8 @@ Manage Odoo with commands.
 
 ### EXAMPLE COMMANDS
 - Create Record: ```create res.partner "{'name': 'The One'}"```
-- Create Alias: ```alias myalias "print Hello, World!"```
+- Search Record: ```search res.partner name "[['id', '>', 5]]"```
+- Create Alias: ```alias myalias "print Hello, $1!"```
 - Install Module: ```install mymodule```
 
 
