@@ -102,7 +102,7 @@ odoo.define('terminal.Terminal', function(require) {
       "click #terminal_screen": "_preventLostInputFocus",
       "click .o_terminal_cmd": "_onClickTerminalCommand",
     },
-    VERSION: '0.1.1',
+    VERSION: '0.2.0',
 
     _registeredCmds: {},
     _inputHistory: [],
@@ -110,6 +110,7 @@ odoo.define('terminal.Terminal', function(require) {
     _searchCommandQuery: '',
     _searchHistoryIter: 0,
 
+    _view_manager: null,
     _parameterChecker: null,
     _parameterReader: null,
 
@@ -119,6 +120,7 @@ odoo.define('terminal.Terminal', function(require) {
 
       this._parameterChecker = new ParameterChecker();
       this._parameterReader = new ParameterReader();
+      this._debugManager = new DebugManager(parent);
     },
 
     start: function() {
@@ -160,8 +162,13 @@ odoo.define('terminal.Terminal', function(require) {
     },
 
     registerCommand: function(cmd, cmdDef) {
-      cmdDef.function = cmdDef.function.bind(this);
-      this._registeredCmds[cmd] = cmdDef;
+      this._registeredCmds[cmd] = _.extend({
+        definition: 'Undefined command',
+        callback: this._fallbackExecuteCommand,
+        detail: "This command hasn't a properly detailed information",
+        syntaxis: 'Unknown',
+        args: '',
+      }, cmdDef);
     },
 
     executeCommand: function(cmd) {
@@ -171,7 +178,7 @@ odoo.define('terminal.Terminal', function(require) {
         var cmdDef = this._registeredCmds[scmd[0]];
         var params = scmd.slice(1);
         if (this._parameterChecker.validate(cmdDef.args, params)) {
-          cmdDef.function(params).fail(function(emsg) {
+          cmdDef.callback.bind(this)(params).fail(function(emsg) {
             var errorMessage = self._getCommandErrorMessage(emsg);
             self.eprint(_.template("[!] Error executing '<%= cmd %>': <%= error %>")({cmd:cmd, error:errorMessage}));
           });
@@ -205,6 +212,11 @@ odoo.define('terminal.Terminal', function(require) {
       }
     },
 
+    /* GENERAL */
+    setViewManager: function(widget) {
+      this._view_manager = widget;
+    },
+
 
     /* PRIVATE METHODS*/
     _getCommandErrorMessage: function(emsg) {
@@ -216,12 +228,12 @@ odoo.define('terminal.Terminal', function(require) {
     },
 
     _printWelcomeMessage: function() {
-      this.print(_.template("<strong style='color:rgb(124, 123, 173);'>Odoo Terminal v<%= ver %></strong>")({ver:this.VERSION}));
+      this.print(_.template("<strong class='o_terminal_title'>Odoo Terminal v<%= ver %></strong>")({ver:this.VERSION}));
     },
 
     _doSearchCommand: function() {
       var self = this;
-      var matchCmds = _.filter(_.keys(this._registeredCmds), function(item){
+      var matchCmds = _.filter(_.keys(this._registeredCmds).sort(), function(item){
         return item.indexOf(self._searchCommandQuery) === 0;
       });
 
@@ -267,6 +279,13 @@ odoo.define('terminal.Terminal', function(require) {
           self.print(_.template("[!] '<%= cmd %>' command not found")({cmd:alias}));
         }
       });
+    },
+
+    _fallbackExecuteCommand: function(params) {
+      var defer = $.Deferred(function(d) {
+        d.reject("Invalid command definition!");
+      });
+      return $.when(defer);
     },
 
     /* HANDLE EVENTS */
@@ -343,6 +362,14 @@ odoo.define('terminal.Terminal', function(require) {
       });
 
       return this._super.apply(this, arguments);
+    },
+
+    current_action_updated: function(action) {
+        this._super.apply(this, arguments);
+        var action_widget = action && action.widget;
+        if (this.terminal) {
+          this.terminal.setViewManager(action_widget);
+        }
     },
   });
 

@@ -20,6 +20,7 @@ Manage Odoo with commands.
 - Create Record: ```create res.partner "{'name': 'The One'}"```
 - Search Record: ```search res.partner name "[['id', '>', 5]]"```
 - Create Alias: ```alias myalias "print Hello, $1!"```
+- Call Alias: ```myalias Me```
 - Install Module: ```install mymodule```
 
 
@@ -40,18 +41,23 @@ Commands works with promises
 ##### Command definition
 ```javascript
 {
-  definition: ,
-  function: ,
-  detail: ,
-  syntaxis: ,
-  args: ,
+  definition: 'string',
+  callback: *pointer,
+  detail: 'string',
+  syntaxis: 'string',
+  args: 'string',
 }
 ```
-- definition: String.
-- function: Function Pointer.
-- detail: String.
-- syntaxis: String. <> Required | [] Optional
-- args: String. 's' String | 'i' Integer | '?' Optional Parameter
+- definition: Quick definition.
+- callback: Callback function pointer.
+- detail: Command explained.
+- syntaxis: Command Parameters (For Humans)
+    - <> Required
+    - [] Optional
+- args: Command Paramerters Types
+    - 's' String
+    - 'i' Integer
+    - '?' Indicates that next parameter is optional
 
 ##### Basic Example
 ```javascript
@@ -68,7 +74,7 @@ odoo.define('terminal.MyFuncs', function(require) {
         definition: 'This is my command',
         function: this._myFunc,
         detail: 'My command explained...',
-        syntaxis: '<STRING> <INT> [STRING]',
+        syntaxis: '<STRING: ParamA> <INT: ParamB> [STRING: ParamC]',
         args: 'si?s',
       });
     },
@@ -79,12 +85,11 @@ odoo.define('terminal.MyFuncs', function(require) {
       var pC = params[2] || "DefaultValue";
       var self = this;
 
-      console.log("1º Param (String): " + pA);
-      console.log("2º Param (Int): " + pB);
-      console.log("3º Param (Optional String): " + pC);
-
       var defer = $.Deferred(function(d){
         self.print("Hello, World!");
+        self.eprint("ParamA (String): " + pA);
+        self.eprint("ParamB (Int): " + pB);
+        self.eprint("ParamC (Optional String): " + pC);
         d.resolve();
       });
 

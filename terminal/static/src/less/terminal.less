@@ -3,6 +3,7 @@
 @terminal_screen_height: 200px;
 @terminal_screen_background_color: black;
 @terminal_screen_text_color: lightgray;
+@terminal_title_color: rgb(124, 123, 173);
 
 .terminal_border {
   border: 1px solid gray;
@@ -25,6 +26,10 @@
     padding: 0;
     overflow-y: scroll;
     caret-color: white;
+
+    .o_terminal_title {
+      color: @terminal_title_color;
+    }
 
     .o_terminal_click:hover {
       cursor: pointer;

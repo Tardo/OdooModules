@@ -4,7 +4,10 @@ odoo.define('terminal.BasicFunctions', function(require) {
   'use strict';
 
   var rpc = require('web.rpc');
+  var ajax = require('web.ajax');
   var session = require('web.session');
+  var dialogs = require('web.view_dialogs');
+  var field_utils = require('web.field_utils');
   var Terminal = require('terminal.Terminal').terminal;
 
   Terminal.include({
@@ -17,108 +20,122 @@ odoo.define('terminal.BasicFunctions', function(require) {
 
       this.registerCommand('clear', {
         definition: 'Clean terminal',
-        function: this._clear,
+        callback: this._clear,
         detail: '',
         syntaxis: '',
         args: '',
       });
       this.registerCommand('print', {
         definition: 'Print a message',
-        function: this._printEval,
+        callback: this._printEval,
         detail: 'Eval parameters and print the result.',
         syntaxis: '<MSG>',
         args: '',
       });
       this.registerCommand('create', {
         definition: 'Create new record',
-        function: this._createModelRecord,
+        callback: this._createModelRecord,
         detail: 'Open new model record in form view or directly.',
-        syntaxis: '<MODEL NAME> "[VALUES]"',
+        syntaxis: '<STRING: MODEL NAME> "[DICT: VALUES]"',
         args: 's?s',
       });
       this.registerCommand('unlink', {
         definition: 'Unlink record',
-        function: this._unlinkModelRecord,
+        callback: this._unlinkModelRecord,
         detail: 'Delete a record.',
-        syntaxis: '<MODEL NAME> <RECORD ID>',
+        syntaxis: '<STRING: MODEL NAME> <INT: RECORD ID>',
         args: 'si',
       });
       this.registerCommand('write', {
         definition: 'Update record values',
-        function: this._writeModelRecord,
+        callback: this._writeModelRecord,
         detail: 'Update record values.',
-        syntaxis: '<MODEL NAME> <RECORD ID> "<NEW VALUES>"',
+        syntaxis: '<STRING: MODEL NAME> <INT: RECORD ID> "<DICT: NEW VALUES>"',
         args: 'sis',
       });
       this.registerCommand('view', {
         definition: 'View model record/s',
-        function: this._viewModelRecord,
+        callback: this._viewModelRecord,
         detail: 'Open model record in form view or records in list view.',
-        syntaxis: '<MODEL NAME> [RECORD ID]',
+        syntaxis: '<STRING: MODEL NAME> [INT: RECORD ID]',
         args: 's?i',
       });
       this.registerCommand('search', {
         definition: 'Search model record/s',
-        function: this._searchModelRecord,
-        detail: 'Launch orm search query.<br/>Fields are separated by commas.',
-        syntaxis: '<MODEL NAME> <FIELDS> "[DOMAIN]"',
-        args: 'ss?s',
+        callback: this._searchModelRecord,
+        detail: 'Launch orm search query.<br/>&lt;FIELDS&gt; are separated by commas.',
+        syntaxis: '<STRING: MODEL NAME> <STRING: FIELDS> "[ARRAY: DOMAIN]" [INT: LIMIT]',
+        args: 'ss?s?i',
       });
       this.registerCommand('call', {
         definition: 'Call model method',
-        function: this._callModelMethod,
+        callback: this._callModelMethod,
         detail: 'Call model method.',
-        syntaxis: '<MODEL> <METHOD> "[ARGS]"',
+        syntaxis: '<STRING: MODEL> <STRING: METHOD> "[ARRAY: ARGS]"',
         args: 'ss?s',
       });
       this.registerCommand('upgrade', {
         definition: 'Upgrade a module',
-        function: this._upgradeModule,
+        callback: this._upgradeModule,
         detail: 'Launch upgrade module process.',
-        syntaxis: '<MODULE NAME>',
+        syntaxis: '<STRING: MODULE NAME>',
         args: 's',
       });
       this.registerCommand('install', {
         definition: 'Install a module',
-        function: this._installModule,
+        callback: this._installModule,
         detail: 'Launch module installation process.',
-        syntaxis: '<MODULE NAME>',
+        syntaxis: '<STRING: MODULE NAME>',
         args: 's',
       });
       this.registerCommand('uninstall', {
         definition: 'Uninstall a module',
-        function: this._uninstallModule,
+        callback: this._uninstallModule,
         detail: 'Launch module deletion process.',
-        syntaxis: '<MODULE NAME>',
+        syntaxis: '<STRING: MODULE NAME>',
         args: 's',
       });
       this.registerCommand('settings', {
         definition: 'Open settings page',
-        function: this._openSettings,
+        callback: this._openSettings,
         detail: 'Open settings page.',
         syntaxis: '',
         args: '',
       });
       this.registerCommand('reload', {
         definition: 'Reload current page',
-        function: this._reloadPage,
+        callback: this._reloadPage,
         detail: 'Reload current page.',
         syntaxis: '',
         args: '',
       });
       this.registerCommand('debug', {
         definition: 'Set debug mode',
-        function: this._setDebugMode,
+        callback: this._setDebugMode,
         detail: 'Set debug mode:<br/>- 0: Disabled<br/>- 1: Enabled<br/>- 2: Enabled with Assets',
-        syntaxis: '<MODE>',
+        syntaxis: '<INT: MODE>',
         args: 'i',
       });
       this.registerCommand('action', {
         definition: 'Call action',
-        function: this._callAction,
+        callback: this._callAction,
         detail: 'Call action.<br/>&lt;ACTION&gt; Can be an string or object.',
-        syntaxis: '"<ACTION>"',
+        syntaxis: '"<STRING|DICT: ACTION>"',
         args: 's',
+      });
+      this.registerCommand('post', {
+        definition: 'Send POST request',
+        callback: this._postData,
+        detail: 'Send POST request to selected controller url',
+        syntaxis: '<STRING: CONTROLLER URL> "<DICT: DATA>"',
+        args: 'ss',
+      });
+      this.registerCommand('metadata', {
+        definition: 'Show metadata information',
+        callback: this._showMetadata,
+        detail: 'Show metadata info: xml & record if available',
+        syntaxis: '',
+        args: '',
       });
     },
 
@@ -269,12 +286,14 @@ odoo.define('terminal.BasicFunctions', function(require) {
       var model = params[0];
       var fields = params[1]==='*'?false:params[1].split(',');
       var domain = params[2] || "[]";
+      var limit = +params[3] || false;
       var self = this;
       return rpc.query({
         method: 'search_read',
         domain: JSON.parse(domain),
         fields: fields,
         model: model,
+        limit: limit,
         kwargs: {context: session.user_context},
       }).then(function(result){
         for (var record of result) {
@@ -290,16 +309,38 @@ odoo.define('terminal.BasicFunctions', function(require) {
 
     _viewModelRecord: function(params) {
       var model = params[0];
+      var resId = +params[1] || false;
       var self = this;
-      return this.do_action({
-          type: 'ir.actions.act_window',
-          res_model: model,
-          res_id: (params.length < 2)?false:+params[1],
-          views: [[false, (params.length < 2)?'list':'form']],
-          target: 'new',
-      }).then(function(){
-        self.do_hide();
-      });
+      if (resId) {
+        return this.do_action({
+            type: 'ir.actions.act_window',
+            name: 'View Record',
+            res_model: model,
+            res_id: resId,
+            views: [[false, 'form']],
+            target: 'new',
+        }).then(function(){
+          self.do_hide();
+        });
+      }
+      new dialogs.SelectCreateDialog(this, {
+        res_model: model,
+        title: 'Select a record',
+        disable_multiple_selection: true,
+        on_selected: function (records) {
+          self.do_action({
+            type: 'ir.actions.act_window',
+            name: 'View Record',
+            res_model: model,
+            res_id: records[0].id,
+            views: [[false, 'form']],
+            target: 'new',
+          });
+        }
+      }).open();
+
+      var defer = $.Deferred(function(d){ d.resolve(); });
+      return $.when(defer);
     },
 
     _createModelRecord: function(params) {
@@ -383,6 +424,53 @@ odoo.define('terminal.BasicFunctions', function(require) {
         // Do Nothing
       }
       return this.do_action(action);
+    },
+
+    _postData: function(params) {
+      var url = params[0];
+      var data = params[1];
+      var self = this;
+      return ajax.post(url, JSON.parse(data)).then(function(results){
+        self.eprint(results);
+      });
+    },
+
+    _showMetadata: function(params) {
+      var self = this;
+      return rpc.query({
+        method: 'search_read',
+        fields: ['name', 'xml_id'],
+        domain: [['id', '=', self._view_manager.active_view.fields_view.view_id]],
+        model: 'ir.ui.view',
+        limit: 1,
+        kwargs: {context: session.user_context},
+      }).then(function(results){
+        var view = results[0];
+        self.print("<strong>+ ACTIVE VIEW INFO</strong>");
+        self.print(_.template("<span style='color: gray;'>XML-ID:</span> <%= id %>")({'id': view.xml_id}));
+        self.print(_.template("<span style='color: gray;'>XML-NAME:</span> <%= name %>")({'name': view.name}));
+        self.print("<strong>+ CURRENT RECORD INFO</strong>");
+        if (self._view_manager.active_view.controller.getSelectedIds().length) {
+          var ds = self._view_manager.dataset;
+          ds.call('get_metadata', [self._view_manager.active_view.controller.getSelectedIds()]).done(function(result) {
+            var metadata = result[0];
+            metadata.creator = field_utils.format.many2one(metadata.create_uid);
+            metadata.lastModifiedBy = field_utils.format.many2one(metadata.write_uid);
+            var createDate = field_utils.parse.datetime(metadata.create_date);
+            metadata.create_date = field_utils.format.datetime(createDate);
+            var modificationDate = field_utils.parse.datetime(metadata.write_date);
+            metadata.write_date = field_utils.format.datetime(modificationDate);
+
+            self.print(_.template("<span style='color: gray;'>ID:</span> <%= id %>")({'id': metadata.id}));
+            self.print(_.template("<span style='color: gray;'>Creator:</span> <span class='o_terminal_click o_terminal_cmd' data-cmd='view res.users <%= uid %>'><%= creator %></span>")({'uid': metadata.create_uid[0], 'creator': metadata.creator}));
+            self.print(_.template("<span style='color: gray;'>Creation Date:</span> <%= date %>")({'date':  metadata.create_date}));
+            self.print(_.template("<span style='color: gray;'>Last Modification By:</span> <span class='o_terminal_click o_terminal_cmd' data-cmd='view res.users <%= uid %>'><%= user %></span>")({'user': metadata.lastModifiedBy, 'uid': metadata.write_uid[0]}));
+            self.print(_.template("<span style='color: gray;'>Last Modification Date:</span> <%= date %>")({'date': metadata.write_date}));
+          });
+        } else {
+          self.print("No metadata available!");
+        }
+      });
     },
 
     _onClickTerminalView: function(ev) {
