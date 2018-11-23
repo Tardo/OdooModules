@@ -13,16 +13,16 @@ odoo.define('terminal.CoreFunctions', function(require) {
 
       this.registerCommand('help', {
         definition: 'Print this help or command detailed info',
-        function: this._printHelp,
-        detail: 'Show commands and a quick definition.',
-        syntaxis: '[COMMAND]',
+        callback: this._printHelp,
+        detail: 'Show commands and a quick definition.<br/>- <> ~> Required Parameter<br/>- [] ~> Optional Parameter',
+        syntaxis: '[STRING: COMMAND]',
         args: '?s',
       });
       this.registerCommand('alias', {
         definition: 'Create alias',
-        function: this._createAlias,
+        callback: this._createAlias,
         detail: 'Create new alias.<br/>Can use "$1, $2, $n..." for input parameters.<br/>Use "-d" in &lt;COMMAND&gt; to delete alias.',
-        syntaxis: '<NAME> <COMMAND>',
+        syntaxis: '<STRING: NAME> <STRING: COMMAND>',
         args: 'ss',
       });
     },
@@ -82,7 +82,8 @@ odoo.define('terminal.CoreFunctions', function(require) {
 
     _printHelp: function(params) {
       if (!params.length) {
-        for (var cmd in this._registeredCmds) {
+        var sortedCmdKeys = _.keys(this._registeredCmds).sort();
+        for (var cmd of sortedCmdKeys) {
           var cmdDef = this._registeredCmds[cmd];
           this._printHelpSimple(cmd, cmdDef);
         }
