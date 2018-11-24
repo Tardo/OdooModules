@@ -120,7 +120,6 @@ odoo.define('terminal.Terminal', function(require) {
 
       this._parameterChecker = new ParameterChecker();
       this._parameterReader = new ParameterReader();
-      this._debugManager = new DebugManager(parent);
     },
 
     start: function() {
