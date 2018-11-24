@@ -437,40 +437,48 @@ odoo.define('terminal.BasicFunctions', function(require) {
 
     _showMetadata: function(params) {
       var self = this;
-      return rpc.query({
-        method: 'search_read',
-        fields: ['name', 'xml_id'],
-        domain: [['id', '=', self._view_manager.active_view.fields_view.view_id]],
-        model: 'ir.ui.view',
-        limit: 1,
-        kwargs: {context: session.user_context},
-      }).then(function(results){
-        var view = results[0];
-        self.print("<strong>+ ACTIVE VIEW INFO</strong>");
-        self.print(_.template("<span style='color: gray;'>XML-ID:</span> <%= id %>")({'id': view.xml_id}));
-        self.print(_.template("<span style='color: gray;'>XML-NAME:</span> <%= name %>")({'name': view.name}));
-        self.print("<strong>+ CURRENT RECORD INFO</strong>");
-        if (self._view_manager.active_view.controller.getSelectedIds().length) {
-          var ds = self._view_manager.dataset;
-          ds.call('get_metadata', [self._view_manager.active_view.controller.getSelectedIds()]).done(function(result) {
-            var metadata = result[0];
-            metadata.creator = field_utils.format.many2one(metadata.create_uid);
-            metadata.lastModifiedBy = field_utils.format.many2one(metadata.write_uid);
-            var createDate = field_utils.parse.datetime(metadata.create_date);
-            metadata.create_date = field_utils.format.datetime(createDate);
-            var modificationDate = field_utils.parse.datetime(metadata.write_date);
-            metadata.write_date = field_utils.format.datetime(modificationDate);
+      if (self._view_manager.active_view) {
+        return rpc.query({
+          method: 'search_read',
+          fields: ['name', 'xml_id'],
+          domain: [['id', '=', self._view_manager.active_view.fields_view.view_id]],
+          model: 'ir.ui.view',
+          limit: 1,
+          kwargs: {context: session.user_context},
+        }).then(function(results){
+          var view = results[0];
+          self.print("<strong>+ ACTIVE VIEW INFO</strong>");
+          self.print(_.template("<span style='color: gray;'>XML-ID:</span> <%= id %>")({'id': view.xml_id}));
+          self.print(_.template("<span style='color: gray;'>XML-NAME:</span> <%= name %>")({'name': view.name}));
+          self.print("<strong>+ CURRENT RECORD INFO</strong>");
+          var ControllerSelectedIds = self._view_manager.active_view.controller.getSelectedIds() || [];
+          if (ControllerSelectedIds.length) {
+            var ds = self._view_manager.dataset;
+            ds.call('get_metadata', [self._view_manager.active_view.controller.getSelectedIds()]).done(function(result) {
+              var metadata = result[0];
+              metadata.creator = field_utils.format.many2one(metadata.create_uid);
+              metadata.lastModifiedBy = field_utils.format.many2one(metadata.write_uid);
+              var createDate = field_utils.parse.datetime(metadata.create_date);
+              metadata.create_date = field_utils.format.datetime(createDate);
+              var modificationDate = field_utils.parse.datetime(metadata.write_date);
+              metadata.write_date = field_utils.format.datetime(modificationDate);
 
-            self.print(_.template("<span style='color: gray;'>ID:</span> <%= id %>")({'id': metadata.id}));
-            self.print(_.template("<span style='color: gray;'>Creator:</span> <span class='o_terminal_click o_terminal_cmd' data-cmd='view res.users <%= uid %>'><%= creator %></span>")({'uid': metadata.create_uid[0], 'creator': metadata.creator}));
-            self.print(_.template("<span style='color: gray;'>Creation Date:</span> <%= date %>")({'date':  metadata.create_date}));
-            self.print(_.template("<span style='color: gray;'>Last Modification By:</span> <span class='o_terminal_click o_terminal_cmd' data-cmd='view res.users <%= uid %>'><%= user %></span>")({'user': metadata.lastModifiedBy, 'uid': metadata.write_uid[0]}));
-            self.print(_.template("<span style='color: gray;'>Last Modification Date:</span> <%= date %>")({'date': metadata.write_date}));
-          });
-        } else {
+              self.print(_.template("<span style='color: gray;'>ID:</span> <%= id %>")({'id': metadata.id}));
+              self.print(_.template("<span style='color: gray;'>Creator:</span> <span class='o_terminal_click o_terminal_cmd' data-cmd='view res.users <%= uid %>'><%= creator %></span>")({'uid': metadata.create_uid[0], 'creator': metadata.creator}));
+              self.print(_.template("<span style='color: gray;'>Creation Date:</span> <%= date %>")({'date':  metadata.create_date}));
+              self.print(_.template("<span style='color: gray;'>Last Modification By:</span> <span class='o_terminal_click o_terminal_cmd' data-cmd='view res.users <%= uid %>'><%= user %></span>")({'user': metadata.lastModifiedBy, 'uid': metadata.write_uid[0]}));
+              self.print(_.template("<span style='color: gray;'>Last Modification Date:</span> <%= date %>")({'date': metadata.write_date}));
+            });
+          } else {
+            self.print("No metadata available!");
+          }
+        });
+      } else {
+        var defer = $.Deferred(function(d){
           self.print("No metadata available!");
-        }
-      });
+        });
+        return $.when(defer);
+      }
     },
 
     _onClickTerminalView: function(ev) {
