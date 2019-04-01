@@ -10,10 +10,11 @@ Manage Odoo with commands.
 - Use alias
 - Call model methods
 - Launch actions
+- Customizable
 - And more...
 
 ### USAGE
-- Press F1
+- Press CTRL + 1
 - Debug Menu Entry
 
 ### EXAMPLE COMMANDS
@@ -90,7 +91,12 @@ odoo.define('terminal.MyFuncs', function(require) {
         self.eprint("ParamA (String): " + pA);
         self.eprint("ParamB (Int): " + pB);
         self.eprint("ParamC (Optional String): " + pC);
-        d.resolve();
+
+        if (Number(pA) === pB) {
+          d.resolve();
+        } else {
+          d.reject("Oops! error");
+        }
       });
 
       return $.when(defer);
