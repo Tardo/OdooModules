@@ -43,14 +43,14 @@ Commands works with promises
 ```javascript
 {
   definition: 'string',
-  callback: *pointer,
+  callback: function,
   detail: 'string',
   syntaxis: 'string',
   args: 'string',
 }
 ```
 - definition: Quick definition.
-- callback: Callback function pointer.
+- callback: Callback function.
 - detail: Command explained.
 - syntaxis: Command Parameters (For Humans)
     - <> Required
