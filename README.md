@@ -1,4 +1,4 @@
-# OdooModules [![Build Status](https://travis-ci.org/Tardo/OdooModules.svg?branch=11.0)](https://travis-ci.org/Tardo/OdooModules)
+# OdooModules [![Build Status](https://travis-ci.org/Tardo/OdooModules.svg?branch=12.0)](https://travis-ci.org/Tardo/OdooModules)
 
 Personal modules for Odoo:
 - terminal - Adds a customizable terminal

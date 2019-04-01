@@ -118,7 +118,8 @@ odoo.define('terminal.Terminal', function (require) {
         _searchCommandQuery: '',
         _searchHistoryIter: 0,
 
-        _view_manager: null,
+        _active_widget: null,
+        _active_action: null,
         _parameterChecker: null,
         _parameterReader: null,
 
@@ -227,8 +228,12 @@ odoo.define('terminal.Terminal', function (require) {
         },
 
         /* GENERAL */
-        setViewManager: function (widget) {
-            this._view_manager = widget;
+        setActiveWidget: function (widget) {
+            this._active_widget = widget;
+        },
+
+        setActiveAction: function (action) {
+            this._active_action = action;
         },
 
 
@@ -392,11 +397,11 @@ odoo.define('terminal.Terminal', function (require) {
             return this._super.apply(this, arguments);
         },
 
-        current_action_updated: function (action) {
+        current_action_updated: function (action, controller) {
             this._super.apply(this, arguments);
-            var action_widget = action && action.widget;
             if (this.terminal) {
-                this.terminal.setViewManager(action_widget);
+                this.terminal.setActiveWidget(controller && controller.widget);
+                this.terminal.setActiveAction(action);
             }
         },
     });

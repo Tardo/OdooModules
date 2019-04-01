@@ -473,14 +473,25 @@ odoo.define('terminal.BasicFunctions', function (require) {
             });
         },
 
+        _get_active_view_type_id: function(view_type) {
+            for (var index in this._active_action._views) {
+                if (this._active_action._views[index][1] === view_type) {
+                    return this._active_action._views[index][0]
+                }
+            }
+
+            return false;
+        },
+
         _showMetadata: function () {
             var self = this;
-            if (self._view_manager.active_view) {
+            var view_id = this._get_active_view_type_id(
+                self._active_widget.viewType);
+            if (view_id) {
                 return rpc.query({
                     method: 'search_read',
                     fields: ['name', 'xml_id'],
-                    domain: [['id', '=',
-                        self._view_manager.active_view.fields_view.view_id]],
+                    domain: [['id', '=', view_id]],
                     model: 'ir.ui.view',
                     limit: 1,
                     kwargs: {context: session.user_context},
@@ -492,10 +503,15 @@ odoo.define('terminal.BasicFunctions', function (require) {
                     self.print(_.template("<span style='color: gray;'>" +
                         "XML-NAME:</span> <%= name %>")({name: view.name}));
                     self.print("<strong>+ CURRENT RECORD INFO</strong>");
-                    var ControllerSelectedIds = self._view_manager.active_view.controller.getSelectedIds() || [];
-                    if (ControllerSelectedIds.length) {
-                        var ds = self._view_manager.dataset;
-                        ds.call('get_metadata', [self._view_manager.active_view.controller.getSelectedIds()]).done(function (result) {
+                    var controllerSelectedIds = self._active_widget.getSelectedIds() || [];
+                    console.log("IDS")
+                    console.log(controllerSelectedIds);
+                    if (controllerSelectedIds.length) {
+                        rpc.query({
+                            model: self._active_widget.modelName,
+                            method: 'get_metadata',
+                            args: controllerSelectedIds,
+                        }).done(function(result) {
                             var metadata = result[0];
                             metadata.creator = field_utils.format.many2one(
                                 metadata.create_uid);
@@ -509,11 +525,13 @@ odoo.define('terminal.BasicFunctions', function (require) {
                             metadata.write_date = field_utils.format.datetime(
                                 modificationDate);
 
+                            console.log(metadata);
+
                             self.print(_.template(
                                 "<span style='color: gray;'>" +
                                 "ID:</span> <%= id %>")({id: metadata.id}));
                             self.print(_.template(
-                                "<span style='color: gray;'>Creator:</span>" +
+                                "<span style='color: gray;'>Creator:</span> " +
                                 "<span class='o_terminal_click " +
                                 "o_terminal_cmd' data-cmd='view " +
                                 "res.users <%= uid %>'><%= creator %></span>")(
