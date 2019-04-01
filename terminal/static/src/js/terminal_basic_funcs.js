@@ -154,7 +154,7 @@ odoo.define('terminal.BasicFunctions', function (require) {
         },
 
         _setDebugMode: function (params) {
-            var mode = params[0];
+            var mode = Number(params[0]);
             if (mode === 0) {
                 this.print(
                     "Debug mode <strong>disabled</strong>. Reloading page...");
