@@ -7,20 +7,14 @@ Terminal
    !! changes will be overwritten.                   !!
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-.. |badge1| image:: https://img.shields.io/badge/maturity-Beta-yellow.png
-    :target: https://odoo-community.org/page/development-status
-    :alt: Beta
+.. |badge1| image:: https://travis-ci.org/Tardo/OdooModules.svg?branch=12.0
+    :target: https://travis-ci.org/Tardo/OdooModules
+    :alt: Build Status
 .. |badge2| image:: https://img.shields.io/badge/licence-AGPL--3-blue.png
     :target: http://www.gnu.org/licenses/agpl-3.0-standalone.html
     :alt: License: AGPL-3
-.. |badge3| image:: https://img.shields.io/badge/github-OCA%2Fterminal-lightgray.png?logo=github
-    :target: https://github.com/OCA/terminal/tree/12.0/terminal
-    :alt: OCA/terminal
-.. |badge4| image:: https://img.shields.io/badge/weblate-Translate%20me-F47D42.png
-    :target: https://translation.odoo-community.org/projects/terminal-12-0/terminal-12-0-terminal
-    :alt: Translate me on Weblate
 
-|badge1| |badge2| |badge3| |badge4| 
+|badge1| |badge2|
 
 Manage Odoo with commands.
 
@@ -156,25 +150,3 @@ Authors
 ~~~~~~~
 
 * Alexandre Díaz <dev@redneboa.es>
-
-Contributors
-~~~~~~~~~~~~
-
-* Alexandre Díaz <dev@redneboa.es>
-
-Maintainers
-~~~~~~~~~~~
-
-This module is maintained by the OCA.
-
-.. image:: https://odoo-community.org/logo.png
-   :alt: Odoo Community Association
-   :target: https://odoo-community.org
-
-OCA, or the Odoo Community Association, is a nonprofit organization whose
-mission is to support the collaborative development of Odoo features and
-promote its widespread use.
-
-This module is part of the `OCA/terminal <https://github.com/OCA/terminal/tree/12.0/terminal>`_ project on GitHub.
-
-You are welcome to contribute. To learn how please visit https://odoo-community.org/page/Contribute.
