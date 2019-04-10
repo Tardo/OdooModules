@@ -138,7 +138,7 @@ odoo.define('terminal.Terminal', function (require) {
             this.$term = this.$el.find('#terminal_screen');
             this.$button = this.$el.find('#terminal_button');
 
-            core.bus.on('keyup', this, this._onCoreKeyDown);
+            core.bus.on('keydown', this, this._onCoreKeyDown);
             core.bus.on('click', this, this._onCoreClick);
 
             this.clean();
