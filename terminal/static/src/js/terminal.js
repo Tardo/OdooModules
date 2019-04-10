@@ -105,12 +105,12 @@ odoo.define('terminal.Terminal', function (require) {
 
     var Terminal = Widget.extend({
         events: {
-            "keyup #terminal_input": "_onInputKeyUp",
+            "keydown #terminal_input": "_onInputKeyDown",
             "click #terminal_button": "_processInputCommand",
             "click #terminal_screen": "_preventLostInputFocus",
             "click .o_terminal_cmd": "_onClickTerminalCommand",
         },
-        VERSION: '0.2.1',
+        VERSION: '0.2.2',
 
         _registeredCmds: {},
         _inputHistory: [],
@@ -138,7 +138,7 @@ odoo.define('terminal.Terminal', function (require) {
             this.$term = this.$el.find('#terminal_screen');
             this.$button = this.$el.find('#terminal_button');
 
-            core.bus.on('keyup', this, this._onCoreKeyUp);
+            core.bus.on('keyup', this, this._onCoreKeyDown);
             core.bus.on('click', this, this._onCoreClick);
 
             this.clean();
@@ -327,7 +327,7 @@ odoo.define('terminal.Terminal', function (require) {
             }
         },
 
-        _onInputKeyUp: function (ev) {
+        _onInputKeyDown: function (ev) {
             if (ev.keyCode === 13) {
                 // Press Enter
                 this._processInputCommand();
@@ -350,6 +350,7 @@ odoo.define('terminal.Terminal', function (require) {
                     this.cleanInput();
                 }
             }
+
             if (ev.keyCode === 9) {
                 // Press Tab
                 if (this.$input.val()) {
@@ -374,7 +375,7 @@ odoo.define('terminal.Terminal', function (require) {
                 this.do_hide();
             }
         },
-        _onCoreKeyUp: function (ev) {
+        _onCoreKeyDown: function (ev) {
             if (ev.ctrlKey && ev.keyCode === 49) {
                 // Press Ctrl + 1
                 this.do_toggle();
