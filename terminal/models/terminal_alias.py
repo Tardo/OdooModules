@@ -6,6 +6,7 @@ from odoo import models, fields
 
 class TerminalAlias(models.Model):
     _name = 'terminal.alias'
+    _description = "Terminal Alias"
 
     name = fields.Char(required=True)
     command = fields.Char(string="Command", required=True)

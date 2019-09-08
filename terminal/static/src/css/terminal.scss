@@ -1,0 +1,77 @@
+$terminal_input_height: 25px;
+$terminal_screen_width: 70%;
+$terminal_screen_height: 40vh;
+$terminal_screen_background_color: black;
+$terminal_screen_text_color: lightgray;
+$terminal_title_color: rgb(124, 123, 173);
+
+
+@mixin terminal-border {
+  border: 0 solid gray;
+}
+
+.o_terminal {
+  width: $terminal_screen_width;
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, 0);
+  z-index: 10;
+  top: -100%;
+  box-shadow: 1px 1px 10px #cecece;
+
+  div#terminal_screen {
+    background-color: $terminal_screen_background_color;
+    color: $terminal_screen_text_color;
+    caret-color: $terminal_screen_text_color;
+    resize: none;
+    height: $terminal_screen_height;
+    padding: $terminal_screen_height 0 0 0;
+    overflow-y: scroll;
+
+    .o_terminal_title {
+      color: $terminal_title_color;
+    }
+
+    .o_terminal_click:hover {
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    @include terminal-border;
+    border-width: 1px 1px 0 1px;
+  }
+
+  .terminal-user-input {
+    background-color: $terminal_screen_background_color;
+    color: $terminal_screen_text_color;
+
+    >.terminal-prompt {
+      @include terminal-border;
+      border-width: 0 0 1px 1px;
+      width: 1em;
+      &:active, &:focus {
+        outline: none;
+      }
+    }
+
+    >input {
+      background-color: $terminal_screen_background_color;
+      color: $terminal_screen_text_color;
+      caret-color: $terminal_screen_text_color;
+      height: $terminal_input_height;
+      &[type=button], &[type=button]:hover {
+        background-color: lightgray;
+      }
+      &[type=edit] {
+        padding: 0;
+      }
+
+      @include terminal-border;
+      border-width: 0 1px 1px 0;
+
+      &,&:active,&:focus {
+        outline: none;
+      }
+    }
+  }
+}

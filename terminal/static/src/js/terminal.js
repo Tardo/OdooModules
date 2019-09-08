@@ -106,11 +106,11 @@ odoo.define('terminal.Terminal', function (require) {
     var Terminal = Widget.extend({
         events: {
             "keydown #terminal_input": "_onInputKeyDown",
-            "click #terminal_button": "_processInputCommand",
             "click #terminal_screen": "_preventLostInputFocus",
             "click .o_terminal_cmd": "_onClickTerminalCommand",
         },
-        VERSION: '0.2.2',
+        VERSION: '0.3.0',
+        PROMPT: '>',
 
         _registeredCmds: {},
         _inputHistory: [],
@@ -134,9 +134,10 @@ odoo.define('terminal.Terminal', function (require) {
         start: function () {
             this._super.apply(this, arguments);
 
-            this.$input = this.$el.find('#terminal_input');
-            this.$term = this.$el.find('#terminal_screen');
-            this.$button = this.$el.find('#terminal_button');
+            this.$('.terminal-prompt').val(this.PROMPT);
+
+            this.$input = this.$('#terminal_input');
+            this.$term = this.$('#terminal_screen');
 
             core.bus.on('keydown', this, this._onCoreKeyDown);
             core.bus.on('click', this, this._onCoreClick);
@@ -275,7 +276,10 @@ odoo.define('terminal.Terminal', function (require) {
                 var self = this;
                 self.$input.append(
                     _.template("<option><%= cmd %></option>")({cmd:cmd}));
-                self.eprint(_.template("> <%= cmd %>")({cmd:cmd}));
+                self.eprint(_.template("<%= prompt %> <%= cmd %>")({
+                    prompt: this.PROMPT,
+                    cmd:cmd,
+                }));
                 this._inputHistory.push(cmd);
                 this.cleanInput();
                 this.executeCommand(cmd);
@@ -322,7 +326,10 @@ odoo.define('terminal.Terminal', function (require) {
             if (Object.prototype.hasOwnProperty.call(ev.target.dataset,
                 'cmd')) {
                 var cmd = ev.target.dataset.cmd;
-                this.eprint(_.template("> <%= cmd %>")({cmd:cmd}));
+                this.eprint(_.template("<%= prompt %> <%= cmd %>")({
+                    prompt: this.PROMPT,
+                    cmd:cmd,
+                }));
                 this.executeCommand(cmd);
             }
         },
@@ -378,6 +385,7 @@ odoo.define('terminal.Terminal', function (require) {
         _onCoreKeyDown: function (ev) {
             if (ev.ctrlKey && ev.keyCode === 49) {
                 // Press Ctrl + 1
+                ev.preventDefault();
                 this.do_toggle();
             }
         },
